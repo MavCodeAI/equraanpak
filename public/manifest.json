@@ -1,0 +1,22 @@
+{
+  "name": "قرآن پاک - Holy Quran",
+  "short_name": "قرآن پاک",
+  "description": "قرآن پاک ریڈر - آف لائن سپورٹ کے ساتھ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9f8f5",
+  "theme_color": "#1a7a4c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
