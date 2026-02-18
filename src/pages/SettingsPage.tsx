@@ -1,15 +1,25 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useUser } from '@/contexts/UserContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { Globe, Moon, Type, FileText } from 'lucide-react';
+import { Globe, Moon, Type, FileText, LogIn, LogOut, CloudUpload, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 const SettingsPage = () => {
   const { t, lang, setLang } = useLanguage();
   const { settings, updateSettings } = useSettings();
+  const { user, logout, syncToCloud } = useUser();
+  const navigate = useNavigate();
+
+  const handleSync = async () => {
+    await syncToCloud();
+    toast({ title: lang === 'ur' ? 'ڈیٹا محفوظ ہو گیا ☁️' : 'Data saved to cloud ☁️', duration: 2000 });
+  };
 
   return (
     <div className="min-h-screen pb-20">
@@ -20,6 +30,41 @@ const SettingsPage = () => {
       </header>
 
       <main className="mx-auto max-w-lg px-4 py-4 space-y-4">
+        {/* User Account */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="h-4 w-4" />
+              {lang === 'ur' ? 'اکاؤنٹ' : 'Account'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {user ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {lang === 'ur' ? 'خوش آمدید،' : 'Welcome,'}{' '}
+                  <span className="font-medium text-foreground">{user.name}</span>
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleSync}>
+                    <CloudUpload className="h-3.5 w-3.5" />
+                    {lang === 'ur' ? 'ڈیٹا محفوظ کریں' : 'Save to Cloud'}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-destructive" onClick={logout}>
+                    <LogOut className="h-3.5 w-3.5" />
+                    {lang === 'ur' ? 'لاگ آؤٹ' : 'Logout'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button variant="outline" className="w-full gap-2" onClick={() => navigate('/login')}>
+                <LogIn className="h-4 w-4" />
+                {lang === 'ur' ? 'لاگ ان / اکاؤنٹ بنائیں' : 'Login / Create Account'}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Language */}
         <Card>
           <CardHeader className="pb-2">
@@ -29,18 +74,10 @@ const SettingsPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex gap-2">
-            <Button
-              variant={lang === 'ur' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setLang('ur')}
-            >
+            <Button variant={lang === 'ur' ? 'default' : 'outline'} size="sm" onClick={() => setLang('ur')}>
               اردو
             </Button>
-            <Button
-              variant={lang === 'en' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setLang('en')}
-            >
+            <Button variant={lang === 'en' ? 'default' : 'outline'} size="sm" onClick={() => setLang('en')}>
               English
             </Button>
           </CardContent>
