@@ -4,11 +4,14 @@ import { surahList } from '@/data/surahs';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
+import { useReadingTimer } from '@/hooks/useReadingTimer';
 import { Bookmark, ReadingProgress } from '@/types/quran';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, BookmarkPlus, BookmarkCheck, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
+import { toast } from '@/hooks/use-toast';
 
 const SurahPage = () => {
   const { id } = useParams();
@@ -19,6 +22,8 @@ const SurahPage = () => {
   const { data: ayahs, isLoading } = useSurahAyahs(surahNumber);
   const surah = surahList.find((s) => s.number === surahNumber);
 
+  useReadingTimer();
+
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
   const [progress, setProgress] = useLocalStorage<ReadingProgress>('quran-progress', {
     lastReadSurah: 1,
@@ -27,6 +32,14 @@ const SurahPage = () => {
     streak: 0,
     lastReadDate: '',
     totalAyahsRead: 0,
+    todayAyahsRead: 0,
+    todayDate: '',
+  });
+
+  // Swipe navigation
+  const swipeHandlers = useSwipeGesture({
+    onSwipeLeft: () => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`),
+    onSwipeRight: () => surahNumber > 1 && navigate(`/surah/${surahNumber - 1}`),
   });
 
   // Update last read position
@@ -47,17 +60,44 @@ const SurahPage = () => {
     bookmarks.some((b) => b.surahNumber === surahNumber && b.ayahNumber === ayahNum);
 
   const toggleBookmark = (ayahNum: number) => {
-    if (isBookmarked(ayahNum)) {
+    const was = isBookmarked(ayahNum);
+    if (was) {
       setBookmarks((prev) => prev.filter((b) => !(b.surahNumber === surahNumber && b.ayahNumber === ayahNum)));
+      toast({ title: lang === 'ur' ? 'بک مارک ہٹایا گیا' : 'Bookmark removed', duration: 1500 });
     } else {
       setBookmarks((prev) => [...prev, { surahNumber, ayahNumber: ayahNum, timestamp: Date.now() }]);
+      toast({ title: lang === 'ur' ? 'بک مارک لگایا گیا ✅' : 'Bookmark added ✅', duration: 1500 });
     }
+    // Track ayah reading
+    const today = new Date().toDateString();
+    setProgress(prev => ({
+      ...prev,
+      lastReadAyah: ayahNum,
+      todayAyahsRead: prev.todayDate === today ? prev.todayAyahsRead + 1 : 1,
+      todayDate: today,
+      totalAyahsRead: prev.totalAyahsRead + 1,
+    }));
   };
+
+  // Long press for bookmark
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleTouchStart = useCallback((ayahNum: number) => {
+    longPressTimer.current = setTimeout(() => {
+      toggleBookmark(ayahNum);
+    }, 500);
+  }, [bookmarks, surahNumber]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   if (!surah) return <div className="p-8 text-center">{t('loading')}</div>;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" {...swipeHandlers}>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2">
@@ -105,10 +145,19 @@ const SurahPage = () => {
                     isBookmarked(ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1'
                   )}
                   style={{ fontSize: `${settings.fontSize}px` }}
-                  onClick={() => toggleBookmark(ayah.numberInSurah)}
+                  onClick={() => {
+                    // Track reading position
+                    setProgress(prev => ({ ...prev, lastReadAyah: ayah.numberInSurah }));
+                  }}
+                  onTouchStart={() => handleTouchStart(ayah.numberInSurah)}
+                  onTouchEnd={handleTouchEnd}
+                  onContextMenu={(e) => { e.preventDefault(); toggleBookmark(ayah.numberInSurah); }}
                 >
                   {ayah.text}
                 </span>
+                {isBookmarked(ayah.numberInSurah) && (
+                  <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5" />
+                )}
                 <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/10 text-primary mx-1 font-sans">
                   {ayah.numberInSurah}
                 </span>

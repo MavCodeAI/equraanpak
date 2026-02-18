@@ -38,6 +38,8 @@ export interface ReadingProgress {
   streak: number;
   lastReadDate: string;
   totalAyahsRead: number;
+  todayAyahsRead: number;
+  todayDate: string;
 }
 
 export type AppLanguage = 'ur' | 'en';
