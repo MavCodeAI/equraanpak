@@ -1,45 +1,55 @@
-import { useEffect, useRef } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useEffect, useRef, useCallback } from 'react';
 
 interface ReadingTime {
   [date: string]: number; // date string -> seconds
 }
 
 export function useReadingTimer() {
-  const [readingTime, setReadingTime] = useLocalStorage<ReadingTime>('quran-reading-time', {});
   const startRef = useRef<number>(Date.now());
-  const savedRef = useRef(false);
 
-  const today = new Date().toDateString();
-
-  const save = () => {
-    if (savedRef.current) return;
-    const elapsed = Math.floor((Date.now() - startRef.current) / 1000);
-    if (elapsed > 0) {
-      setReadingTime(prev => ({
-        ...prev,
-        [today]: (prev[today] || 0) + elapsed,
-      }));
-      startRef.current = Date.now();
+  // Direct localStorage read for return values
+  const getReadingTime = (): ReadingTime => {
+    try {
+      return JSON.parse(localStorage.getItem('quran-reading-time') || '{}');
+    } catch {
+      return {};
     }
   };
 
+  const saveDirectly = useCallback(() => {
+    const elapsed = Math.floor((Date.now() - startRef.current) / 1000);
+    if (elapsed > 2) {
+      const today = new Date().toDateString();
+      const current = getReadingTime();
+      current[today] = (current[today] || 0) + elapsed;
+      localStorage.setItem('quran-reading-time', JSON.stringify(current));
+      startRef.current = Date.now();
+    }
+  }, []);
+
   useEffect(() => {
     startRef.current = Date.now();
-    savedRef.current = false;
 
-    const interval = setInterval(save, 30000);
+    const interval = setInterval(saveDirectly, 30000);
+    const handleBeforeUnload = () => saveDirectly();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') saveDirectly();
+    };
 
-    const handleBeforeUnload = () => save();
     window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      save();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Save directly to localStorage on unmount - no state update
+      saveDirectly();
     };
-  }, []);
+  }, [saveDirectly]);
 
+  const readingTime = getReadingTime();
+  const today = new Date().toDateString();
   const todayMinutes = Math.floor((readingTime[today] || 0) / 60);
 
   const weekMinutes = (() => {
