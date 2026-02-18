@@ -9,7 +9,7 @@ import { useReadingTimer } from '@/hooks/useReadingTimer';
 import { Bookmark } from '@/types/quran';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -100,8 +100,9 @@ const PageReadingPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            {lang === 'ur' ? <ArrowRight className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
+          <Button variant="outline" size="sm" onClick={() => navigate('/')} className="gap-1.5">
+            {lang === 'ur' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+            {lang === 'ur' ? 'واپس' : 'Back'}
           </Button>
           <div className="text-center">
             <h1 className="text-base font-bold text-primary">
@@ -202,6 +203,14 @@ const PageReadingPage = () => {
           >
             <ChevronLeft className="h-4 w-4" />
             {t('prev')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/')}
+            className="h-9 w-9"
+          >
+            <Home className="h-5 w-5 text-primary" />
           </Button>
           <span className="text-sm font-medium text-muted-foreground">
             {currentPage} / {totalPages}
