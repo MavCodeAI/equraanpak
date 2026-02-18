@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, BookOpen, Globe } from 'lucide-react';
+import { Search, BookOpen, Globe, FileText } from 'lucide-react';
 import { surahList } from '@/data/surahs';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -85,17 +85,28 @@ const Index = () => {
           <p className="text-sm text-muted-foreground">{t('welcomeMsg')}</p>
         </div>
 
-        {/* Continue Reading */}
-        {progress.lastReadSurah > 0 && (
+        {/* Action Buttons */}
+        <div className="space-y-2">
+          {progress.lastReadSurah > 0 && (
+            <Button
+              onClick={() => navigate(`/surah/${progress.lastReadSurah}`)}
+              className="w-full gap-2"
+              size="lg"
+            >
+              <BookOpen className="h-5 w-5" />
+              {t('continueReading')}
+            </Button>
+          )}
           <Button
-            onClick={() => navigate(`/surah/${progress.lastReadSurah}`)}
+            variant="outline"
+            onClick={() => navigate('/page-reading')}
             className="w-full gap-2"
             size="lg"
           >
-            <BookOpen className="h-5 w-5" />
-            {t('continueReading')}
+            <FileText className="h-5 w-5" />
+            {t('pageReading')}
           </Button>
-        )}
+        </div>
 
         {/* Search */}
         <div className="relative">
