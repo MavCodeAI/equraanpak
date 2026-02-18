@@ -51,6 +51,10 @@ const translations: Translations = {
   scheduleSetup: { ur: 'نیا شیڈول بنائیں', en: 'Create New Schedule' },
   customDays: { ur: 'اپنی مرضی کے دن', en: 'Custom days' },
   dayTarget: { ur: 'آج کا ہدف:', en: "Today's target:" },
+  pageReading: { ur: 'صفحہ نمبر سے پڑھیں', en: 'Read by Page' },
+  page: { ur: 'صفحہ', en: 'Page' },
+  goToPage: { ur: 'صفحہ نمبر', en: 'Page number' },
+  go: { ur: 'جائیں', en: 'Go' },
 };
 
 interface LanguageContextType {

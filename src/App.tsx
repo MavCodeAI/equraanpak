@@ -12,6 +12,7 @@ import BookmarksPage from "./pages/BookmarksPage";
 import SchedulePage from "./pages/SchedulePage";
 import ProgressPage from "./pages/ProgressPage";
 import SettingsPage from "./pages/SettingsPage";
+import PageReadingPage from "./pages/PageReadingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/surah/:id" element={<SurahPage />} />
+              <Route path="/page-reading" element={<PageReadingPage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/schedule" element={<SchedulePage />} />
               <Route path="/progress" element={<ProgressPage />} />

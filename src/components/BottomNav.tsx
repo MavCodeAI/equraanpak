@@ -15,8 +15,8 @@ export function BottomNav() {
   const location = useLocation();
   const { t } = useLanguage();
 
-  // Hide on surah reading page
-  if (location.pathname.startsWith('/surah/')) return null;
+  // Hide on reading pages
+  if (location.pathname.startsWith('/surah/') || location.pathname === '/page-reading') return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-sm">
