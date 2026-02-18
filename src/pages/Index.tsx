@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, BookOpen, Globe, FileText, Flame, Award, Clock } from 'lucide-react';
+import { Search, BookOpen, Globe, FileText, Flame, Award, Clock, LogIn, User } from 'lucide-react';
 import { surahList } from '@/data/surahs';
 import { juzList } from '@/data/juzData';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { ReadingProgress, KhatamSchedule } from '@/types/quran';
+import { useUser } from '@/contexts/UserContext';
 import { DailyGoalPopup } from '@/components/DailyGoalPopup';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ const dailyQuotes = {
 const Index = () => {
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
+  const { user } = useUser();
   const [search, setSearch] = useState('');
   const [showGoal, setShowGoal] = useState(false);
 
@@ -124,11 +126,47 @@ const Index = () => {
       </header>
 
       <main className="mx-auto max-w-lg px-4 py-4 space-y-4">
-        {/* Welcome + Quote */}
+        {/* Welcome + User */}
         <div className="text-center space-y-1">
-          <h2 className="text-2xl font-arabic font-bold rtl">{t('welcome')}</h2>
+          <h2 className="text-2xl font-arabic font-bold rtl">
+            {user 
+              ? (lang === 'ur' ? `السلام علیکم، ${user.name}` : `Assalamu Alaikum, ${user.name}`)
+              : t('welcome')
+            }
+          </h2>
           <p className="text-sm text-muted-foreground italic">{todayQuote}</p>
         </div>
+
+        {/* Login Prompt */}
+        {!user && (
+          <Card 
+            className="p-3 flex items-center gap-3 cursor-pointer hover:bg-secondary/50 transition-colors border-dashed"
+            onClick={() => navigate('/login')}
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+              <LogIn className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {lang === 'ur' ? 'لاگ ان کریں' : 'Login'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {lang === 'ur' ? 'اپنا ڈیٹا محفوظ رکھیں ☁️' : 'Keep your data safe ☁️'}
+              </p>
+            </div>
+          </Card>
+        )}
+
+        {/* Logged in user badge */}
+        {user && (
+          <Card className="p-2 flex items-center justify-center gap-2 text-sm">
+            <User className="h-4 w-4 text-primary" />
+            <span className="text-muted-foreground">
+              {lang === 'ur' ? 'ڈیٹا کلاؤڈ میں محفوظ ہے' : 'Data saved to cloud'}
+            </span>
+            <span className="text-primary">☁️</span>
+          </Card>
+        )}
 
         {/* Streak Badge */}
         {currentStreak > 0 && (
