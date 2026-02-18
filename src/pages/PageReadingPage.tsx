@@ -1,37 +1,55 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePageAyahs } from '@/hooks/useQuranAPI';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
+import { useReadingTimer } from '@/hooks/useReadingTimer';
 import { Bookmark } from '@/types/quran';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, ArrowRight, BookmarkPlus, BookmarkCheck, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
-// Total pages: 604 in standard Mushaf
 const TOTAL_PAGES = 604;
-// 15-line mushaf has 604 pages, 16-line has ~548 pages
 const TOTAL_PAGES_16 = 548;
 
 const PageReadingPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t, lang } = useLanguage();
   const { settings, updateSettings } = useSettings();
   const [pageInput, setPageInput] = useState('');
 
+  useReadingTimer();
+
   const totalPages = settings.pageFormat === '16-line' ? TOTAL_PAGES_16 : TOTAL_PAGES;
-
   const [currentPage, setCurrentPage] = useLocalStorage<number>('quran-current-page', 1);
-  const { data: ayahs, isLoading } = usePageAyahs(currentPage);
 
+  // Handle page param from juz navigation
+  useEffect(() => {
+    const pageParam = searchParams.get('page');
+    if (pageParam) {
+      const p = parseInt(pageParam);
+      if (p >= 1 && p <= totalPages) setCurrentPage(p);
+    }
+  }, [searchParams]);
+
+  const { data: ayahs, isLoading } = usePageAyahs(currentPage);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
 
   const goToPage = (p: number) => {
     const clamped = Math.max(1, Math.min(totalPages, p));
     setCurrentPage(clamped);
   };
+
+  // Swipe navigation
+  const swipeHandlers = useSwipeGesture({
+    onSwipeLeft: () => goToPage(currentPage + 1),
+    onSwipeRight: () => goToPage(currentPage - 1),
+  });
 
   const handlePageJump = () => {
     const p = parseInt(pageInput);
@@ -45,14 +63,31 @@ const PageReadingPage = () => {
     bookmarks.some((b) => b.surahNumber === surahNum && b.ayahNumber === ayahNum);
 
   const toggleBookmark = (surahNum: number, ayahNum: number) => {
-    if (isBookmarked(surahNum, ayahNum)) {
+    const was = isBookmarked(surahNum, ayahNum);
+    if (was) {
       setBookmarks((prev) => prev.filter((b) => !(b.surahNumber === surahNum && b.ayahNumber === ayahNum)));
+      toast({ title: lang === 'ur' ? 'بک مارک ہٹایا گیا' : 'Bookmark removed', duration: 1500 });
     } else {
       setBookmarks((prev) => [...prev, { surahNumber: surahNum, ayahNumber: ayahNum, timestamp: Date.now() }]);
+      toast({ title: lang === 'ur' ? 'بک مارک لگایا گیا ✅' : 'Bookmark added ✅', duration: 1500 });
     }
   };
 
-  // Group ayahs by surah for display
+  // Long press for bookmark
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleTouchStart = useCallback((surahNum: number, ayahNum: number) => {
+    longPressTimer.current = setTimeout(() => {
+      toggleBookmark(surahNum, ayahNum);
+    }, 500);
+  }, [bookmarks]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
   const groupedBySurah = ayahs?.reduce((acc, ayah) => {
     const surahNum = ayah.surah.number;
     if (!acc[surahNum]) acc[surahNum] = { name: ayah.surah.name, ayahs: [] };
@@ -61,7 +96,7 @@ const PageReadingPage = () => {
   }, {} as Record<number, { name: string; ayahs: typeof ayahs }>);
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-16" {...swipeHandlers}>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2">
@@ -88,7 +123,6 @@ const PageReadingPage = () => {
       </header>
 
       <main className="mx-auto max-w-lg px-4 py-6">
-        {/* Page Jump */}
         <div className="flex gap-2 mb-4">
           <Input
             type="number"
@@ -115,7 +149,6 @@ const PageReadingPage = () => {
           <div className="space-y-4">
             {groupedBySurah && Object.entries(groupedBySurah).map(([surahNum, group]) => (
               <div key={surahNum}>
-                {/* Surah header if new surah starts on this page */}
                 {group.ayahs[0]?.numberInSurah === 1 && (
                   <div className="text-center mb-3 py-2 border-y border-primary/20">
                     <h2 className="text-xl font-arabic font-bold text-primary rtl">{group.name}</h2>
@@ -136,10 +169,15 @@ const PageReadingPage = () => {
                           isBookmarked(parseInt(surahNum), ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1'
                         )}
                         style={{ fontSize: `${settings.fontSize}px` }}
-                        onClick={() => toggleBookmark(parseInt(surahNum), ayah.numberInSurah)}
+                        onTouchStart={() => handleTouchStart(parseInt(surahNum), ayah.numberInSurah)}
+                        onTouchEnd={handleTouchEnd}
+                        onContextMenu={(e) => { e.preventDefault(); toggleBookmark(parseInt(surahNum), ayah.numberInSurah); }}
                       >
                         {ayah.text}
                       </span>
+                      {isBookmarked(parseInt(surahNum), ayah.numberInSurah) && (
+                        <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5" />
+                      )}
                       <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/10 text-primary mx-1 font-sans">
                         {ayah.numberInSurah}
                       </span>
