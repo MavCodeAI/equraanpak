@@ -37,6 +37,7 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
   const ayahIndexRef = useRef(0);
   const isPlayingRef = useRef(false);
   const animRef = useRef<number | null>(null);
+  const playNextRef = useRef<((index: number) => Promise<void>) | null>(null);
 
   // Time update loop
   const updateTime = useCallback(() => {
@@ -87,6 +88,7 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
     setCurrentTime(0);
     setDuration(0);
     isPlayingRef.current = false;
+    playNextRef.current = null;
   }, [stopTimeTracking]);
 
   const seek = useCallback((time: number) => {
@@ -96,48 +98,13 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
     }
   }, []);
 
-  const playAyah = useCallback(async (globalAyahNumber: number, numberInSurah: number) => {
-    stop();
-    setMode('ayah');
-    setIsLoading(true);
-    setCurrentAyah(numberInSurah);
-
-    const url = `https://cdn.islamic.network/quran/audio/128/${qari}/${globalAyahNumber}.mp3`;
-    const audio = new Audio(url);
-    audioRef.current = audio;
-
-    audio.oncanplay = () => setIsLoading(false);
-    audio.onloadedmetadata = () => setDuration(audio.duration);
-    audio.onended = () => {
-      setIsPlaying(false);
-      setCurrentAyah(null);
-      setCurrentTime(0);
-      setDuration(0);
-      stopTimeTracking();
-    };
-    audio.onerror = () => {
-      setIsLoading(false);
-      setIsPlaying(false);
-      setCurrentAyah(null);
-      stopTimeTracking();
-    };
-
-    try {
-      await audio.play();
-      setIsPlaying(true);
-      isPlayingRef.current = true;
-      startTimeTracking();
-    } catch {
-      setIsLoading(false);
-    }
-  }, [qari, stop, startTimeTracking, stopTimeTracking]);
-
-  const playSurah = useCallback(async () => {
+  // Internal: play a sequence of ayahs starting from an index
+  const startSequentialPlay = useCallback(async (startIndex: number) => {
     if (!ayahs?.length) return;
     stop();
     setMode('surah');
     isPlayingRef.current = true;
-    ayahIndexRef.current = 0;
+    ayahIndexRef.current = startIndex;
 
     const playNext = async (index: number) => {
       if (index >= ayahs.length || !isPlayingRef.current) {
@@ -173,8 +140,50 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
       }
     };
 
-    await playNext(0);
+    playNextRef.current = playNext;
+    await playNext(startIndex);
   }, [ayahs, qari, stop, startTimeTracking]);
+
+  // Play from a specific ayah and continue to the end
+  const playAyah = useCallback(async (globalAyahNumber: number, numberInSurah: number) => {
+    if (!ayahs?.length) return;
+    // Find the index of this ayah in the array
+    const index = ayahs.findIndex(a => a.numberInSurah === numberInSurah);
+    if (index === -1) return;
+    await startSequentialPlay(index);
+  }, [ayahs, startSequentialPlay]);
+
+  // Play from the beginning
+  const playSurah = useCallback(async () => {
+    await startSequentialPlay(0);
+  }, [startSequentialPlay]);
+
+  // Skip to next ayah
+  const skipNext = useCallback(() => {
+    if (!ayahs?.length || !isPlayingRef.current) return;
+    const nextIndex = ayahIndexRef.current + 1;
+    if (nextIndex < ayahs.length) {
+      // Stop current audio and play next
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      stopTimeTracking();
+      playNextRef.current?.(nextIndex);
+    }
+  }, [ayahs, stopTimeTracking]);
+
+  // Skip to previous ayah
+  const skipPrev = useCallback(() => {
+    if (!ayahs?.length || !isPlayingRef.current) return;
+    const prevIndex = Math.max(0, ayahIndexRef.current - 1);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    stopTimeTracking();
+    playNextRef.current?.(prevIndex);
+  }, [ayahs, stopTimeTracking]);
 
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -203,6 +212,8 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
     stop,
     togglePlayPause,
     seek,
+    skipNext,
+    skipPrev,
     qari,
   };
 }
