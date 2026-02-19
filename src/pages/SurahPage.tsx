@@ -105,33 +105,52 @@ const SurahPage = () => {
     <div className="min-h-screen" {...swipeHandlers}>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2">
-          <Button variant="outline" size="sm" onClick={() => navigate('/')} className="gap-1.5">
-            {lang === 'ur' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
-            {lang === 'ur' ? 'واپس' : 'Back'}
-          </Button>
-          <div className="text-center">
-            <h1 className="text-lg font-arabic font-bold text-primary rtl">{surah.name}</h1>
-            <p className="text-xs text-muted-foreground">
-              {lang === 'ur' ? surah.urduName : surah.englishNameTranslation}
-            </p>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <AudioPlayer
-              isPlaying={audio.isPlaying}
-              isLoading={audio.isLoading}
-              currentAyah={audio.currentAyah}
-              onPlaySurah={audio.playSurah}
-              onStop={audio.stop}
-              onTogglePlayPause={audio.togglePlayPause}
-            />
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
-              <Minus className="h-3 w-3" />
+        <div className="mx-auto max-w-lg px-4 py-2">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" size="sm" onClick={() => navigate('/')} className="gap-1.5">
+              {lang === 'ur' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {lang === 'ur' ? 'واپس' : 'Back'}
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) })}>
-              <Plus className="h-3 w-3" />
-            </Button>
+            <div className="text-center">
+              <h1 className="text-lg font-arabic font-bold text-primary rtl">{surah.name}</h1>
+              <p className="text-xs text-muted-foreground">
+                {lang === 'ur' ? surah.urduName : surah.englishNameTranslation}
+              </p>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <AudioPlayer
+                isPlaying={audio.isPlaying}
+                isLoading={audio.isLoading}
+                currentAyah={audio.currentAyah}
+                onPlaySurah={audio.playSurah}
+                onStop={audio.stop}
+                onTogglePlayPause={audio.togglePlayPause}
+                compact
+              />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
+                <Minus className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) })}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
+          {/* Progress bar when playing */}
+          {(audio.isPlaying || audio.currentAyah) && (
+            <div className="mt-1.5">
+              <AudioPlayer
+                isPlaying={audio.isPlaying}
+                isLoading={audio.isLoading}
+                currentAyah={audio.currentAyah}
+                currentTime={audio.currentTime}
+                duration={audio.duration}
+                onPlaySurah={audio.playSurah}
+                onStop={audio.stop}
+                onTogglePlayPause={audio.togglePlayPause}
+                onSeek={audio.seek}
+              />
+            </div>
+          )}
         </div>
       </header>
 
