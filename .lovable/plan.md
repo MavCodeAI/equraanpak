@@ -1,79 +1,46 @@
 
 
-# مزید یوزر فرینڈلی فیچرز - پلان
+## Error Fix Plan - Quran App
 
-## خلاصہ
-ایپ کو مزید آسان، خوبصورت اور استعمال کے قابل بنانے کے لیے درج ذیل فیچرز شامل کیے جائیں گے۔
+### Problem 1: Vite HMR Stale Cache (Main Error)
+The "Cannot read properties of null (reading 'useState')" error is caused by Vite serving outdated cached modules. The error points to line 293 in LanguageContext.tsx, but that file only has 105 lines -- proof of stale cache.
 
----
+**Fix:** Force a full module graph rebuild by adding cache-busting to `vite.config.ts` and touching key entry files.
 
-## نئے فیچرز
+### Problem 2: Stale Closure Bug in SurahPage.tsx
+`handleTouchStart` uses `useCallback` but references `toggleBookmark` which depends on `bookmarks` state. The dependency array only has `[bookmarks, surahNumber]` but `toggleBookmark` is not wrapped in `useCallback` itself, so the long-press bookmark may reference stale data.
 
-### 1. سوائپ نیویگیشن (صفحہ اور سورت ریڈنگ)
-- بائیں/دائیں سوائپ سے اگلا/پچھلا صفحہ یا سورت پر جائیں
-- ٹچ جیسچر سپورٹ (موبائل کے لیے بہت اہم)
+**Fix:** Wrap `toggleBookmark` in `useCallback` with proper dependencies, or remove `useCallback` from `handleTouchStart` since it's not performance-critical.
 
-### 2. آخری پڑھی ہوئی جگہ کی بہتر ٹریکنگ
-- سورت ریڈنگ میں آیت نمبر تک یاد رکھے
-- بک مارکس صفحہ سے سیدھا اسی آیت پر سکرول ہو
-- ہوم پیج پر "جہاں چھوڑا" بٹن پر سورت کا نام اور آیت نمبر دکھائے
+### Problem 3: Same Stale Closure Bug in PageReadingPage.tsx
+Identical issue with `handleTouchStart` and `toggleBookmark`.
 
-### 3. سرچ بار میں بہتری
-- پارہ نمبر سے بھی تلاش کریں (مثلا "پارہ 15")
-- انگریزی اور اردو دونوں زبانوں میں تلاش
-- سرچ ریزلٹس میں سورت کا عربی نام بھی نمایاں ہو
-
-### 4. لانگ پریس بک مارک (ٹچ فرینڈلی)
-- آیت پر لانگ پریس کرنے سے بک مارک مینو کھلے
-- بک مارک لگانے/ہٹانے کی تصدیق ٹوسٹ نوٹیفکیشن سے ملے
-- بک مارک ہونے پر آیت کے ساتھ چھوٹا آئیکن دکھے
-
-### 5. پڑھنے کا وقت ٹریکر
-- صارف کتنی دیر سے پڑھ رہا ہے یہ ٹریک ہو
-- پروگریس صفحے پر "آج کا پڑھنے کا وقت" دکھائے
-- ہفتہ وار خلاصہ (کتنے منٹ پڑھا)
-
-### 6. پارہ کی فہرست (Juz Index)
-- ہوم پیج پر ایک نیا ٹیب: "سورتیں" اور "پارے"
-- پارہ نمبر پر کلک کرنے سے اس پارے کے پہلے صفحے پر جائیں
-- ہر پارے کا نام (عربی) اور صفحہ نمبر دکھائے
-
-### 7. بہتر حوصلہ افزائی نظام
-- مسلسل 3، 7، 14، 21، 30 دن پڑھنے پر خاص بیج/انعام
-- ہوم پیج پر streak بیج دکھائے
-- حدیث/قرآنی اقتباسات روزانہ بدلتے رہیں
-
-### 8. "آج کتنا پڑھا" پروگریس بار (ہوم پیج)
-- ہوم پیج پر ایک چھوٹا پروگریس کارڈ
-- آج کتنے صفحات/آیات پڑھیں یہ دکھائے
-- شیڈول سے موازنہ (آج کا ہدف بمقابلہ پڑھا ہوا)
+### Problem 4: useQuranAudio cleanup dependency
+The cleanup `useEffect` at line 64 has an empty dependency array `[]` but references `stopTimeTracking` which is a `useCallback`. This could miss cleanup in edge cases.
 
 ---
 
-## ٹیکنیکل تفصیلات
+### Technical Implementation
 
-### فائلیں جو بنائی/تبدیل ہوں گی:
+**File 1: `vite.config.ts`**
+- Add a unique build timestamp comment to force cache invalidation
 
-| فائل | تبدیلی |
-|------|--------|
-| `src/pages/Index.tsx` | پارہ ٹیب، بہتر continue reading کارڈ، آج کا پروگریس کارڈ، streak بیج |
-| `src/pages/SurahPage.tsx` | سوائپ جیسچر، لانگ پریس بک مارک، ٹوسٹ نوٹیفکیشن، پڑھنے کا وقت ٹریکر |
-| `src/pages/PageReadingPage.tsx` | سوائپ نیویگیشن، لانگ پریس بک مارک |
-| `src/pages/ProgressPage.tsx` | پڑھنے کا وقت دکھائے، streak مائلسٹونز، ہفتہ وار خلاصہ |
-| `src/components/DailyGoalPopup.tsx` | بہتر حوصلہ افزائی پیغامات، بیج سسٹم |
-| `src/hooks/useReadingTimer.ts` | نیا - پڑھنے کا وقت ٹریک کرنے کا ہک |
-| `src/hooks/useSwipeGesture.ts` | نیا - ٹچ سوائپ ہینڈلنگ |
-| `src/data/juzData.ts` | نیا - 30 پاروں کا ڈیٹا (نام، شروع کا صفحہ) |
-| `src/types/quran.ts` | ReadingProgress میں وقت ٹریکنگ فیلڈز شامل |
-| `src/contexts/LanguageContext.tsx` | نئے ترجمے شامل |
+**File 2: `src/main.tsx`**
+- Add a cache-busting comment with timestamp to force fresh module loading
 
-### سوائپ جیسچر کا طریقہ:
-- `touchstart` اور `touchend` ایونٹس سے سوائپ ڈیٹیکٹ ہوگا
-- کم از کم 50px افقی حرکت پر نیویگیشن ٹرگر ہوگا
-- عمودی سکرولنگ متاثر نہیں ہوگی
+**File 3: `src/contexts/LanguageContext.tsx`**
+- Minor touch to force re-compilation (add explicit React import validation)
 
-### پڑھنے کا وقت ٹریکنگ:
-- ریڈنگ صفحات پر `useEffect` سے ٹائمر شروع ہوگا
-- ہر 30 سیکنڈ بعد لوکل سٹوریج میں محفوظ ہوگا
-- صفحہ چھوڑنے پر (`beforeunload`) بھی محفوظ ہوگا
+**File 4: `src/contexts/SettingsContext.tsx`**
+- Minor touch to force re-compilation
+
+**File 5: `src/pages/SurahPage.tsx`**
+- Fix `handleTouchStart` stale closure: remove `useCallback` wrapper (not needed for touch handlers)
+- Same for `handleTouchEnd`
+
+**File 6: `src/pages/PageReadingPage.tsx`**
+- Fix same `handleTouchStart` / `handleTouchEnd` stale closure issue
+
+**File 7: `src/hooks/useQuranAudio.ts`**
+- Add `stopTimeTracking` to cleanup useEffect dependency array
 
