@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppSettings, PageFormat } from '@/types/quran';
+import { AppSettings } from '@/types/quran';
 
 interface SettingsContextType {
   settings: AppSettings;
