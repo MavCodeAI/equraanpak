@@ -8,6 +8,7 @@ import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useReadingTimer } from '@/hooks/useReadingTimer';
 import { useQuranAudio } from '@/hooks/useQuranAudio';
 import { Bookmark } from '@/types/quran';
+import { useChunkedAyahs } from '@/hooks/useChunkedAyahs';
 import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ const PageReadingPage = () => {
   }, [searchParams]);
 
   const { data: ayahs, isLoading } = usePageAyahs(currentPage);
+  const { visibleItems: visibleAyahs, hasMore, sentinelRef } = useChunkedAyahs(ayahs);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
 
   // Get first surah number for audio - page may have multiple surahs
@@ -94,7 +96,7 @@ const PageReadingPage = () => {
     }
   }, []);
 
-  const groupedBySurah = ayahs?.reduce((acc, ayah) => {
+  const groupedBySurah = visibleAyahs?.reduce((acc, ayah) => {
     const surahNum = ayah.surah.number;
     if (!acc[surahNum]) acc[surahNum] = { name: ayah.surah.name, ayahs: [] };
     acc[surahNum].ayahs.push(ayah);
@@ -203,6 +205,11 @@ const PageReadingPage = () => {
                 </div>
               </div>
             ))}
+            {hasMore && (
+              <div ref={sentinelRef} className="h-8 flex items-center justify-center">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
           </div>
         )}
       </main>

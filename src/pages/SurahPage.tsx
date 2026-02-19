@@ -8,6 +8,7 @@ import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useReadingTimer } from '@/hooks/useReadingTimer';
 import { useQuranAudio } from '@/hooks/useQuranAudio';
 import { Bookmark, ReadingProgress } from '@/types/quran';
+import { useChunkedAyahs } from '@/hooks/useChunkedAyahs';
 import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus, Volume2 } from 'lucide-react';
@@ -27,6 +28,7 @@ const SurahPage = () => {
   useReadingTimer();
 
   const audio = useQuranAudio({ surahNumber, ayahs: ayahs ?? [] });
+  const { visibleItems: visibleAyahs, hasMore, sentinelRef } = useChunkedAyahs(ayahs);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
   const [progress, setProgress] = useLocalStorage<ReadingProgress>('quran-progress', {
     lastReadSurah: 1,
@@ -149,7 +151,7 @@ const SurahPage = () => {
           </div>
         ) : (
           <div className="rtl leading-[2.5] space-y-1" dir="rtl">
-             {ayahs?.map((ayah) => (
+             {visibleAyahs?.map((ayah) => (
               <span key={ayah.numberInSurah} className="inline group relative">
                 <span
                   className={cn(
@@ -176,6 +178,11 @@ const SurahPage = () => {
                 </span>
               </span>
             ))}
+            {hasMore && (
+              <div ref={sentinelRef} className="h-8 flex items-center justify-center">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
           </div>
         )}
       </main>
