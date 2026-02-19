@@ -12,7 +12,7 @@ import { useChunkedAyahs } from '@/hooks/useChunkedAyahs';
 import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus, Volume2 } from 'lucide-react';
+import { BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -31,7 +31,6 @@ const PageReadingPage = () => {
   const totalPages = settings.pageFormat === '16-line' ? TOTAL_PAGES_16 : TOTAL_PAGES;
   const [currentPage, setCurrentPage] = useLocalStorage<number>('quran-current-page', 1);
 
-  // Handle page param from juz navigation
   useEffect(() => {
     const pageParam = searchParams.get('page');
     if (pageParam) {
@@ -44,7 +43,6 @@ const PageReadingPage = () => {
   const { visibleItems: visibleAyahs, hasMore, sentinelRef } = useChunkedAyahs(ayahs);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
 
-  // Get first surah number for audio - page may have multiple surahs
   const firstSurahNum = ayahs?.[0]?.surah?.number ?? 1;
   const audio = useQuranAudio({ surahNumber: firstSurahNum, ayahs: ayahs ?? [] });
 
@@ -53,7 +51,6 @@ const PageReadingPage = () => {
     setCurrentPage(clamped);
   };
 
-  // Swipe navigation
   const swipeHandlers = useSwipeGesture({
     onSwipeLeft: () => goToPage(currentPage + 1),
     onSwipeRight: () => goToPage(currentPage - 1),
@@ -81,7 +78,6 @@ const PageReadingPage = () => {
     }
   };
 
-  // Long press for bookmark
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleTouchStart = useCallback((surahNum: number, ayahNum: number) => {
     longPressTimer.current = setTimeout(() => {
@@ -96,7 +92,6 @@ const PageReadingPage = () => {
     }
   }, []);
 
-  // Auto-scroll to playing ayah
   useEffect(() => {
     if (audio.currentAyah) {
       const el = document.querySelector(`[data-ayah-page="${audio.currentAyah}"]`);
@@ -111,60 +106,19 @@ const PageReadingPage = () => {
     return acc;
   }, {} as Record<number, { name: string; ayahs: typeof ayahs }>);
 
+  const audioActive = audio.isPlaying || audio.currentAyah;
+
   return (
-    <div className="min-h-screen pb-16" {...swipeHandlers}>
-      {/* Header */}
+    <div className="min-h-screen pb-28" {...swipeHandlers}>
+      {/* Minimal Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-lg px-4 py-2">
-          <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={() => navigate('/')} className="gap-1.5">
-              {lang === 'ur' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
-              {lang === 'ur' ? 'واپس' : 'Back'}
-            </Button>
-            <div className="text-center">
-              <h1 className="text-base font-bold text-primary">
-                {t('page')} {currentPage}
-              </h1>
-              <p className="text-[10px] text-muted-foreground">
-                {settings.pageFormat === '16-line' ? t('line16') : t('line15')}
-              </p>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <AudioPlayer
-                isPlaying={audio.isPlaying}
-                isLoading={audio.isLoading}
-                currentAyah={audio.currentAyah}
-                onPlaySurah={audio.playSurah}
-                onStop={audio.stop}
-                onTogglePlayPause={audio.togglePlayPause}
-                compact
-              />
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
-                <Minus className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) })}>
-                <Plus className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-          {(audio.isPlaying || audio.currentAyah) && (
-            <div className="mt-1.5">
-              <AudioPlayer
-                isPlaying={audio.isPlaying}
-                isLoading={audio.isLoading}
-                currentAyah={audio.currentAyah}
-                currentTime={audio.currentTime}
-                duration={audio.duration}
-                totalAyahs={ayahs?.length}
-                onPlaySurah={audio.playSurah}
-                onStop={audio.stop}
-                onTogglePlayPause={audio.togglePlayPause}
-                onSeek={audio.seek}
-                onSkipNext={audio.skipNext}
-                onSkipPrev={audio.skipPrev}
-              />
-            </div>
-          )}
+        <div className="mx-auto max-w-lg px-4 py-2.5 text-center">
+          <h1 className="text-base font-bold text-primary">
+            {t('page')} {currentPage}
+          </h1>
+          <p className="text-[10px] text-muted-foreground">
+            {settings.pageFormat === '16-line' ? t('line16') : t('line15')}
+          </p>
         </div>
       </header>
 
@@ -185,11 +139,10 @@ const PageReadingPage = () => {
           </Button>
         </div>
 
-        {/* Hint banner */}
-        {!audio.isPlaying && !audio.currentAyah && !isLoading && (
+        {!audioActive && !isLoading && (
           <div className="mb-4 p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-center">
             <p className="text-xs text-muted-foreground">
-              {lang === 'ur' 
+              {lang === 'ur'
                 ? '🔊 آیت پر ٹیپ کریں — وہاں سے مسلسل تلاوت شروع ہوگی'
                 : '🔊 Tap any ayah to start continuous playback from there'}
             </p>
@@ -216,7 +169,6 @@ const PageReadingPage = () => {
                     )}
                   </div>
                 )}
-
                 <div className="rtl leading-[2.5]" dir="rtl">
                   {group.ayahs.map((ayah) => (
                     <span key={`${surahNum}-${ayah.numberInSurah}`} className="inline" data-ayah-page={ayah.numberInSurah}>
@@ -254,40 +206,77 @@ const PageReadingPage = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className="gap-1"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            {t('prev')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/')}
-            className="h-9 w-9"
-          >
-            <Home className="h-5 w-5 text-primary" />
-          </Button>
-          <span className="text-sm font-medium text-muted-foreground">
-            {currentPage} / {totalPages}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className="gap-1"
-          >
-            {t('next')}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {/* ═══ Bottom Toolbar ═══ */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-lg px-3">
+          {audioActive && (
+            <div className="pt-2 pb-1 border-b border-border/50">
+              <AudioPlayer
+                isPlaying={audio.isPlaying}
+                isLoading={audio.isLoading}
+                currentAyah={audio.currentAyah}
+                currentTime={audio.currentTime}
+                duration={audio.duration}
+                totalAyahs={ayahs?.length}
+                onPlaySurah={audio.playSurah}
+                onStop={audio.stop}
+                onTogglePlayPause={audio.togglePlayPause}
+                onSeek={audio.seek}
+                onSkipNext={audio.skipNext}
+                onSkipPrev={audio.skipPrev}
+              />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="gap-0.5 px-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-xs hidden min-[380px]:inline">{t('prev')}</span>
+            </Button>
+
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+
+            {!audioActive ? (
+              <Button
+                variant="default"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={audio.playSurah}
+                title={lang === 'ur' ? 'سنیں' : 'Play'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/')}>
+                <Home className="h-5 w-5 text-primary" />
+              </Button>
+            )}
+
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) })}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className="gap-0.5 px-2"
+            >
+              <span className="text-xs hidden min-[380px]:inline">{t('next')}</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
