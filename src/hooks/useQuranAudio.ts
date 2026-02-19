@@ -69,7 +69,7 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
         audioRef.current = null;
       }
     };
-  }, []);
+  }, [stopTimeTracking]);
 
   // Stop when qari changes
   useEffect(() => {

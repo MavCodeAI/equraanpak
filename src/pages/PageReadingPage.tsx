@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePageAyahs } from '@/hooks/useQuranAPI';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -79,18 +79,18 @@ const PageReadingPage = () => {
   };
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleTouchStart = useCallback((surahNum: number, ayahNum: number) => {
+  const handleTouchStart = (surahNum: number, ayahNum: number) => {
     longPressTimer.current = setTimeout(() => {
       toggleBookmark(surahNum, ayahNum);
     }, 500);
-  }, [bookmarks]);
+  };
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  }, []);
+  };
 
   useEffect(() => {
     if (audio.currentAyah) {
