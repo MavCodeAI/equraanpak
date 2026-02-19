@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, BookOpen, Globe, FileText, Flame, Award, Clock, LogIn, User, Sparkles } from 'lucide-react';
 import { surahList } from '@/data/surahs';
@@ -14,6 +14,136 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+// Debounce hook for search input
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// Simple virtualization hook for fixed-height items
+const useVirtualList = <T,>(
+  items: T[],
+  itemHeight: number,
+  containerHeight: number,
+  overscan: number = 3
+) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  const totalHeight = items.length * itemHeight;
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+  const endIndex = Math.min(
+    items.length - 1,
+    Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan
+  );
+  const visibleItems = items.slice(startIndex, endIndex + 1);
+  const offsetY = startIndex * itemHeight;
+
+  return {
+    containerRef,
+    handleScroll,
+    visibleItems,
+    totalHeight,
+    startIndex,
+    offsetY,
+  };
+};
+
+// Memoized Surah Card Component
+interface SurahCardProps {
+  surah: typeof surahList[0];
+  lang: 'en' | 'ur';
+  t: (key: string) => string;
+  onClick: () => void;
+  index: number;
+}
+
+const SurahCard = memo(({ surah, lang, t, onClick, index }: SurahCardProps) => (
+  <Card
+    className="flex items-center gap-3 p-3.5 cursor-pointer card-hover animate-fade-in border-border/40 will-change-transform"
+    style={{ animationDelay: `${Math.min(index * 20, 150)}ms`, animationFillMode: 'both' }}
+    onClick={onClick}
+  >
+    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary font-bold text-sm shrink-0">
+      {surah.number}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-sm truncate">
+          {lang === 'ur' ? surah.urduName : surah.englishName}
+        </span>
+        <span className="text-lg font-arabic font-bold rtl text-primary shrink-0">
+          {surah.name}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+        <span>{surah.numberOfAyahs} {t('ayahs')}</span>
+        <span className="opacity-30">•</span>
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 rounded-md">
+          {t(surah.revelationType.toLowerCase())}
+        </Badge>
+      </div>
+    </div>
+  </Card>
+));
+
+SurahCard.displayName = 'SurahCard';
+
+// Memoized Juz Card Component
+interface JuzCardProps {
+  juz: typeof juzList[0];
+  lang: 'en' | 'ur';
+  t: (key: string) => string;
+  onClick: () => void;
+  index: number;
+  completedParas: Record<number, boolean>;
+}
+
+const JuzCard = memo(({ juz, lang, t, onClick, index, completedParas }: JuzCardProps) => (
+  <Card
+    className="flex items-center gap-3 p-3.5 cursor-pointer card-hover animate-fade-in border-border/40 will-change-transform"
+    style={{ animationDelay: `${Math.min(index * 20, 150)}ms`, animationFillMode: 'both' }}
+    onClick={onClick}
+  >
+    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary font-bold text-sm shrink-0">
+      {juz.number}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-sm">
+          {t('para')} {juz.number}
+        </span>
+        <span className="text-lg font-arabic font-bold rtl text-primary shrink-0">
+          {juz.name}
+        </span>
+      </div>
+      <div className="text-xs text-muted-foreground mt-0.5">
+        {t('page')} {juz.startPage}
+        {completedParas[juz.number] && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-2 rounded-md">✅ {t('completed')}</Badge>
+        )}
+      </div>
+    </div>
+  </Card>
+));
+
+JuzCard.displayName = 'JuzCard';
 
 const streakBadges = [
   { days: 30, emoji: '👑', color: 'bg-accent text-accent-foreground' },
@@ -46,6 +176,9 @@ const Index = () => {
   const { user } = useUser();
   const [search, setSearch] = useState('');
   const [showGoal, setShowGoal] = useState(false);
+
+  // Debounce search input with 300ms delay
+  const debouncedSearch = useDebounce(search, 300);
 
   const [progress] = useLocalStorage<ReadingProgress>('quran-progress', {
     lastReadSurah: 1,
@@ -82,11 +215,12 @@ const Index = () => {
   const currentStreak = progress.streak;
   const currentBadge = streakBadges.find(b => currentStreak >= b.days);
   const todayQuote = dailyQuotes[lang][new Date().getDate() % dailyQuotes[lang].length];
-  const lastSurah = surahList.find(s => s.number === progress.lastReadSurah);
+  const lastSurah = useMemo(() => surahList.find(s => s.number === progress.lastReadSurah), [progress.lastReadSurah]);
 
+  // Memoized filtered list - uses debounced search to prevent filtering on every keystroke
   const filtered = useMemo(() => {
-    if (!search.trim()) return surahList;
-    const q = search.toLowerCase().trim();
+    if (!debouncedSearch.trim()) return surahList;
+    const q = debouncedSearch.toLowerCase().trim();
     const paraMatch = q.match(/^(?:پارہ|para|juz)\s*(\d+)$/i);
     if (paraMatch) {
       const paraNum = parseInt(paraMatch[1]);
@@ -95,13 +229,48 @@ const Index = () => {
     }
     return surahList.filter(
       (s) =>
-        s.name.includes(search) ||
+        s.name.includes(debouncedSearch) ||
         s.englishName.toLowerCase().includes(q) ||
-        s.urduName.includes(search) ||
+        s.urduName.includes(debouncedSearch) ||
         s.englishNameTranslation.toLowerCase().includes(q) ||
         s.number.toString() === q
     );
-  }, [search]);
+  }, [debouncedSearch]);
+
+  // Memoized click handlers
+  const handleSurahClick = useCallback((surahNumber: number) => {
+    navigate(`/surah/${surahNumber}`);
+  }, [navigate]);
+
+  const handleJuzClick = useCallback((startPage: number) => {
+    navigate(`/page-reading?page=${startPage}`);
+  }, [navigate]);
+
+  const handleLanguageToggle = useCallback(() => {
+    setLang(lang === 'ur' ? 'en' : 'ur');
+  }, [lang, setLang]);
+
+  const handleLoginClick = useCallback(() => {
+    navigate('/login');
+  }, [navigate]);
+
+  const handleContinueReading = useCallback(() => {
+    navigate(`/surah/${progress.lastReadSurah}`);
+  }, [navigate, progress.lastReadSurah]);
+
+  const handlePageReading = useCallback(() => {
+    navigate('/page-reading');
+  }, [navigate]);
+
+  // Virtualized surah list - fixed height container with overscan
+  const SURAH_ITEM_HEIGHT = 88; // approximate height of each card in pixels
+  const SURAH_CONTAINER_HEIGHT = 500; // viewport height for virtual scrolling
+  const surahVirtual = useVirtualList(filtered, SURAH_ITEM_HEIGHT, SURAH_CONTAINER_HEIGHT, 3);
+
+  // Virtualized juz list
+  const JUZ_ITEM_HEIGHT = 88;
+  const JUZ_CONTAINER_HEIGHT = 500;
+  const juzVirtual = useVirtualList(juzList, JUZ_ITEM_HEIGHT, JUZ_CONTAINER_HEIGHT, 3);
 
   return (
     <div className="min-h-screen pb-20">
@@ -117,7 +286,7 @@ const Index = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLang(lang === 'ur' ? 'en' : 'ur')}
+            onClick={handleLanguageToggle}
             className="gap-1.5 rounded-full"
           >
             <Globe className="h-4 w-4" />
@@ -142,7 +311,7 @@ const Index = () => {
         {!user && (
           <Card 
             className="p-3.5 flex items-center gap-3 cursor-pointer card-hover border-dashed animate-fade-in"
-            onClick={() => navigate('/login')}
+            onClick={handleLoginClick}
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
               <LogIn className="h-4.5 w-4.5 text-primary" />
@@ -208,7 +377,7 @@ const Index = () => {
         <div className="space-y-2.5 animate-slide-up">
           {progress.lastReadSurah > 0 && lastSurah && (
             <Button
-              onClick={() => navigate(`/surah/${progress.lastReadSurah}`)}
+              onClick={handleContinueReading}
               className="w-full gap-3 h-auto py-4 rounded-xl gradient-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow duration-300"
               size="lg"
             >
@@ -223,7 +392,7 @@ const Index = () => {
           )}
           <Button
             variant="outline"
-            onClick={() => navigate('/page-reading')}
+            onClick={handlePageReading}
             className="w-full gap-2 rounded-xl card-hover"
             size="lg"
           >
@@ -251,69 +420,53 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="surahs" className="mt-3">
-            <div className="space-y-2">
-              {filtered.map((surah, i) => (
-                <Card
-                  key={surah.number}
-                  className="flex items-center gap-3 p-3.5 cursor-pointer card-hover animate-fade-in border-border/40"
-                  style={{ animationDelay: `${Math.min(i * 30, 300)}ms`, animationFillMode: 'both' }}
-                  onClick={() => navigate(`/surah/${surah.number}`)}
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary font-bold text-sm shrink-0">
-                    {surah.number}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm truncate">
-                        {lang === 'ur' ? surah.urduName : surah.englishName}
-                      </span>
-                      <span className="text-lg font-arabic font-bold rtl text-primary shrink-0">
-                        {surah.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                      <span>{surah.numberOfAyahs} {t('ayahs')}</span>
-                      <span className="opacity-30">•</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 rounded-md">
-                        {t(surah.revelationType.toLowerCase())}
-                      </Badge>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+            {/* Virtualized Surah List */}
+            <div 
+              ref={surahVirtual.containerRef}
+              onScroll={surahVirtual.handleScroll}
+              className="space-y-2 overflow-y-auto"
+              style={{ height: SURAH_CONTAINER_HEIGHT }}
+            >
+              <div style={{ height: surahVirtual.totalHeight, position: 'relative' }}>
+                <div style={{ transform: `translateY(${surahVirtual.offsetY}px)` }}>
+                  {surahVirtual.visibleItems.map((surah, idx) => (
+                    <SurahCard
+                      key={surah.number}
+                      surah={surah}
+                      lang={lang}
+                      t={t}
+                      onClick={() => handleSurahClick(surah.number)}
+                      index={idx}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="juz" className="mt-3">
-            <div className="space-y-2">
-              {juzList.map((juz, i) => (
-                <Card
-                  key={juz.number}
-                  className="flex items-center gap-3 p-3.5 cursor-pointer card-hover animate-fade-in border-border/40"
-                  style={{ animationDelay: `${Math.min(i * 30, 300)}ms`, animationFillMode: 'both' }}
-                  onClick={() => navigate(`/page-reading?page=${juz.startPage}`)}
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary font-bold text-sm shrink-0">
-                    {juz.number}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm">
-                        {t('para')} {juz.number}
-                      </span>
-                      <span className="text-lg font-arabic font-bold rtl text-primary shrink-0">
-                        {juz.name}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {t('page')} {juz.startPage}
-                      {progress.completedParas[juz.number] && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-2 rounded-md">✅ {t('completed')}</Badge>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
+            {/* Virtualized Juz List */}
+            <div 
+              ref={juzVirtual.containerRef}
+              onScroll={juzVirtual.handleScroll}
+              className="space-y-2 overflow-y-auto"
+              style={{ height: JUZ_CONTAINER_HEIGHT }}
+            >
+              <div style={{ height: juzVirtual.totalHeight, position: 'relative' }}>
+                <div style={{ transform: `translateY(${juzVirtual.offsetY}px)` }}>
+                  {juzVirtual.visibleItems.map((juz, idx) => (
+                    <JuzCard
+                      key={juz.number}
+                      juz={juz}
+                      lang={lang}
+                      t={t}
+                      onClick={() => handleJuzClick(juz.startPage)}
+                      index={idx}
+                      completedParas={progress.completedParas}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
