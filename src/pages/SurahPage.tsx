@@ -61,6 +61,14 @@ const SurahPage = () => {
     }
   }, [surahNumber]);
 
+  // Auto-scroll to playing ayah
+  useEffect(() => {
+    if (audio.currentAyah) {
+      const el = document.querySelector(`[data-ayah="${audio.currentAyah}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [audio.currentAyah]);
+
   const isBookmarked = (ayahNum: number) =>
     bookmarks.some((b) => b.surahNumber === surahNumber && b.ayahNumber === ayahNum);
 
@@ -144,10 +152,13 @@ const SurahPage = () => {
                 currentAyah={audio.currentAyah}
                 currentTime={audio.currentTime}
                 duration={audio.duration}
+                totalAyahs={ayahs?.length}
                 onPlaySurah={audio.playSurah}
                 onStop={audio.stop}
                 onTogglePlayPause={audio.togglePlayPause}
                 onSeek={audio.seek}
+                onSkipNext={audio.skipNext}
+                onSkipPrev={audio.skipPrev}
               />
             </div>
           )}
@@ -162,6 +173,17 @@ const SurahPage = () => {
           </p>
         )}
 
+        {/* Hint banner */}
+        {!audio.isPlaying && !audio.currentAyah && !isLoading && (
+          <div className="mb-4 p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-center">
+            <p className="text-xs text-muted-foreground">
+              {lang === 'ur' 
+                ? '🔊 آیت پر ٹیپ کریں — وہاں سے مسلسل تلاوت شروع ہوگی'
+                : '🔊 Tap any ayah to start continuous playback from there'}
+            </p>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -171,12 +193,12 @@ const SurahPage = () => {
         ) : (
           <div className="rtl leading-[2.5] space-y-1" dir="rtl">
              {visibleAyahs?.map((ayah) => (
-              <span key={ayah.numberInSurah} className="inline group relative">
+              <span key={ayah.numberInSurah} className="inline group relative" data-ayah={ayah.numberInSurah}>
                 <span
                   className={cn(
                     'font-arabic cursor-pointer hover:text-primary transition-colors',
                     isBookmarked(ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1',
-                    audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1'
+                    audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1 font-bold'
                   )}
                   style={{ fontSize: `${settings.fontSize}px` }}
                   onClick={() => {

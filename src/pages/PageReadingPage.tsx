@@ -96,6 +96,14 @@ const PageReadingPage = () => {
     }
   }, []);
 
+  // Auto-scroll to playing ayah
+  useEffect(() => {
+    if (audio.currentAyah) {
+      const el = document.querySelector(`[data-ayah-page="${audio.currentAyah}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [audio.currentAyah]);
+
   const groupedBySurah = visibleAyahs?.reduce((acc, ayah) => {
     const surahNum = ayah.surah.number;
     if (!acc[surahNum]) acc[surahNum] = { name: ayah.surah.name, ayahs: [] };
@@ -147,10 +155,13 @@ const PageReadingPage = () => {
                 currentAyah={audio.currentAyah}
                 currentTime={audio.currentTime}
                 duration={audio.duration}
+                totalAyahs={ayahs?.length}
                 onPlaySurah={audio.playSurah}
                 onStop={audio.stop}
                 onTogglePlayPause={audio.togglePlayPause}
                 onSeek={audio.seek}
+                onSkipNext={audio.skipNext}
+                onSkipPrev={audio.skipPrev}
               />
             </div>
           )}
@@ -173,6 +184,17 @@ const PageReadingPage = () => {
             {t('go')}
           </Button>
         </div>
+
+        {/* Hint banner */}
+        {!audio.isPlaying && !audio.currentAyah && !isLoading && (
+          <div className="mb-4 p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-center">
+            <p className="text-xs text-muted-foreground">
+              {lang === 'ur' 
+                ? '🔊 آیت پر ٹیپ کریں — وہاں سے مسلسل تلاوت شروع ہوگی'
+                : '🔊 Tap any ayah to start continuous playback from there'}
+            </p>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="space-y-3">
@@ -197,12 +219,12 @@ const PageReadingPage = () => {
 
                 <div className="rtl leading-[2.5]" dir="rtl">
                   {group.ayahs.map((ayah) => (
-                    <span key={`${surahNum}-${ayah.numberInSurah}`} className="inline">
+                    <span key={`${surahNum}-${ayah.numberInSurah}`} className="inline" data-ayah-page={ayah.numberInSurah}>
                       <span
                         className={cn(
                           'font-arabic cursor-pointer hover:text-primary transition-colors',
                           isBookmarked(parseInt(surahNum), ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1',
-                          audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1'
+                          audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1 font-bold'
                         )}
                         style={{ fontSize: `${settings.fontSize}px` }}
                         onClick={() => audio.playAyah(ayah.number, ayah.numberInSurah)}
