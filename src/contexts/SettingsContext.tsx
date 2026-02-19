@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppSettings } from '@/types/quran';
+import type { AppSettings } from '@/types/quran';
 
 interface SettingsContextType {
   settings: AppSettings;
