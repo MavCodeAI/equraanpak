@@ -18,7 +18,7 @@ export function BottomNav() {
   if (location.pathname.startsWith('/surah/') || location.pathname === '/page-reading') return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/90 backdrop-blur-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/90 backdrop-blur-lg" aria-label="Main navigation">
       <div className="mx-auto flex max-w-lg items-center justify-around py-1.5 px-2">
         {navItems.map(({ key, icon: Icon, path }) => {
           const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);

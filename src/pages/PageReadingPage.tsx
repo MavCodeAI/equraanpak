@@ -183,6 +183,14 @@ const PageReadingPage = () => {
                         onTouchStart={() => handleTouchStart(parseInt(surahNum), ayah.numberInSurah)}
                         onTouchEnd={handleTouchEnd}
                         onContextMenu={(e) => { e.preventDefault(); toggleBookmark(parseInt(surahNum), ayah.numberInSurah); }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            audio.playAyah(ayah.number, ayah.numberInSurah);
+                          }
+                        }}
                       >
                         {ayah.text}
                       </span>
@@ -237,7 +245,7 @@ const PageReadingPage = () => {
               className="gap-0.5 px-2"
             >
               <ChevronLeft className="h-4 w-4" />
-              <span className="text-xs hidden min-[380px]:inline">{t('prev')}</span>
+              <span className="text-xs hidden sm:inline">{t('prev')}</span>
             </Button>
 
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
@@ -273,7 +281,7 @@ const PageReadingPage = () => {
               disabled={currentPage >= totalPages}
               className="gap-0.5 px-2"
             >
-              <span className="text-xs hidden min-[380px]:inline">{t('next')}</span>
+              <span className="text-xs hidden sm:inline">{t('next')}</span>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

@@ -154,6 +154,15 @@ const SurahPage = () => {
                   onTouchStart={() => handleTouchStart(ayah.numberInSurah)}
                   onTouchEnd={handleTouchEnd}
                   onContextMenu={(e) => { e.preventDefault(); toggleBookmark(ayah.numberInSurah); }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setProgress(prev => ({ ...prev, lastReadAyah: ayah.numberInSurah }));
+                      audio.playAyah(ayah.number, ayah.numberInSurah);
+                    }
+                  }}
                 >
                   {ayah.text}
                 </span>
@@ -192,7 +201,7 @@ const SurahPage = () => {
           <div className="flex items-center justify-between py-2.5">
             <Button variant="ghost" size="sm" onClick={() => surahNumber > 1 && navigate(`/surah/${surahNumber - 1}`)} disabled={surahNumber <= 1} className="gap-0.5 px-2 rounded-xl">
               <ChevronLeft className="h-4 w-4" />
-              <span className="text-xs hidden min-[380px]:inline">{t('prev')}</span>
+              <span className="text-xs hidden sm:inline">{t('prev')}</span>
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
               <Minus className="h-3.5 w-3.5" />
@@ -212,7 +221,7 @@ const SurahPage = () => {
               <Plus className="h-3.5 w-3.5" />
             </Button>
             <Button variant="ghost" size="sm" onClick={() => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`)} disabled={surahNumber >= 114} className="gap-0.5 px-2 rounded-xl">
-              <span className="text-xs hidden min-[380px]:inline">{t('next')}</span>
+              <span className="text-xs hidden sm:inline">{t('next')}</span>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
