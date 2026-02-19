@@ -1,3 +1,4 @@
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,16 +9,33 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { BottomNav } from "@/components/BottomNav";
 import Index from "./pages/Index";
-import SurahPage from "./pages/SurahPage";
-import BookmarksPage from "./pages/BookmarksPage";
-import SchedulePage from "./pages/SchedulePage";
-import ProgressPage from "./pages/ProgressPage";
-import SettingsPage from "./pages/SettingsPage";
-import PageReadingPage from "./pages/PageReadingPage";
-import LoginPage from "./pages/LoginPage";
-import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Lazy load secondary pages for faster initial load
+const SurahPage = lazy(() => import("./pages/SurahPage"));
+const BookmarksPage = lazy(() => import("./pages/BookmarksPage"));
+const SchedulePage = lazy(() => import("./pages/SchedulePage"));
+const ProgressPage = lazy(() => import("./pages/ProgressPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const PageReadingPage = lazy(() => import("./pages/PageReadingPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+      gcTime: 1000 * 60 * 30, // 30 min cache
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="h-8 w-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,17 +46,19 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/surah/:id" element={<SurahPage />} />
-                <Route path="/page-reading" element={<PageReadingPage />} />
-                <Route path="/bookmarks" element={<BookmarksPage />} />
-                <Route path="/schedule" element={<SchedulePage />} />
-                <Route path="/progress" element={<ProgressPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/surah/:id" element={<SurahPage />} />
+                  <Route path="/page-reading" element={<PageReadingPage />} />
+                  <Route path="/bookmarks" element={<BookmarksPage />} />
+                  <Route path="/schedule" element={<SchedulePage />} />
+                  <Route path="/progress" element={<ProgressPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
               <BottomNav />
             </BrowserRouter>
           </TooltipProvider>
