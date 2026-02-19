@@ -249,6 +249,9 @@ const PageReadingPage = () => {
                 onSeek={audio.seek}
                 onSkipNext={audio.skipNext}
                 onSkipPrev={audio.skipPrev}
+                onSetSleepTimer={audio.setSleepTimer}
+                onClearSleepTimer={audio.clearSleepTimer}
+                sleepTimerRemaining={audio.sleepTimerRemaining}
               />
             </div>
           )}

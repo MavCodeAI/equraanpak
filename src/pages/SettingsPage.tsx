@@ -21,12 +21,12 @@ import {
 import {
   Globe, Moon, Sun, Type, FileText, LogIn, LogOut, CloudUpload,
   User, Volume2, ChevronRight, Shield, Smartphone, BookOpen,
-  Info, Trash2, Check
+  Info, Trash2, Check, Gauge
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { QARI_LIST } from '@/hooks/useQuranAudio';
-import { QariId } from '@/types/quran';
+import { QariId, AudioSpeed } from '@/types/quran';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { cn } from '@/lib/utils';
 
@@ -192,7 +192,7 @@ const SettingsPage = () => {
             <div className="py-3">
               <p className="text-sm font-medium text-foreground mb-1">{t('pageFormat')}</p>
               <p className="text-xs text-muted-foreground mb-2">
-                {lang === 'ur' ? 'صفحہ پڑھائی کا فارمیٹ منتخب کریں' : 'Select page reading format'}
+                {lang === 'ur' ? 'صفحہ پڑھائی کا فارمیٹ selected کریں' : 'Select page reading format'}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -228,8 +228,33 @@ const SettingsPage = () => {
         <Card className="overflow-hidden">
           <CardContent className="p-4">
             <SectionHeader icon={Volume2} title={lang === 'ur' ? 'آڈیو / قاری' : 'Audio / Reciter'} />
+            
+            {/* Audio Speed Control */}
+            <div className="mb-4 p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Gauge className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">
+                  {lang === 'ur' ? 'آڈیو رفتار' : 'Playback Speed'}
+                </p>
+                <span className="text-xs text-primary font-bold ml-auto">{settings.audioSpeed}x</span>
+              </div>
+              <div className="flex gap-1.5">
+                {([0.5, 0.75, 1, 1.25, 1.5] as AudioSpeed[]).map((speed) => (
+                  <Button
+                    key={speed}
+                    variant={settings.audioSpeed === speed ? 'default' : 'outline'}
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => updateSettings({ audioSpeed: speed })}
+                  >
+                    {speed}x
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
             <p className="text-xs text-muted-foreground mb-3">
-              {lang === 'ur' ? 'تلاوت کے لیے قاری منتخب کریں' : 'Select reciter for audio playback'}
+              {lang === 'ur' ? 'تلاوت کے لیے قاری selected کریں' : 'Select reciter for audio playback'}
             </p>
             <div className="space-y-1.5">
               {QARI_LIST.map((q) => (

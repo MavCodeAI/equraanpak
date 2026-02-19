@@ -7,11 +7,14 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useReadingTimer } from '@/hooks/useReadingTimer';
 import { useQuranAudio } from '@/hooks/useQuranAudio';
-import { Bookmark, ReadingProgress } from '@/types/quran';
+import { useNotes } from '@/hooks/useNotes';
+import { Bookmark, ReadingProgress, NoteColor } from '@/types/quran';
 import { useChunkedAyahs } from '@/hooks/useChunkedAyahs';
 import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/AudioPlayer';
-import { BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
+import { NotesPanel } from '@/components/NotesPanel';
+import { NoteEditor } from '@/components/NoteEditor';
+import { BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus, Copy, Share2, StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -41,6 +44,13 @@ const SurahPage = () => {
     lastReadSurah: 1, lastReadAyah: 1, completedParas: {}, streak: 0,
     lastReadDate: '', totalAyahsRead: 0, todayAyahsRead: 0, todayDate: '',
   });
+
+  // Notes state
+  const { notes, addNote, updateNote, deleteNote, hasNote } = useNotes();
+  const [notesPanelOpen, setNotesPanelOpen] = useState(false);
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ id: string; content: string; color?: NoteColor } | null>(null);
+  const [selectedAyahForNote, setSelectedAyahForNote] = useState<number | null>(null);
 
   const swipeHandlers = useSwipeGesture({
     onSwipeLeft: useCallback(() => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`), [surahNumber, navigate]),
@@ -87,11 +97,19 @@ const SurahPage = () => {
   }, [bookmarkSet, surahNumber, lang]);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleTouchStart = useCallback((ayahNum: number) => {
-    longPressTimer.current = setTimeout(() => toggleBookmark(ayahNum), 500);
-  }, [toggleBookmark]);
+    longPressTimer.current = setTimeout(() => {
+      setSelectedAyahForNote(ayahNum);
+      setNoteEditorOpen(true);
+    }, 800);
+  }, []);
+
   const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+    if (longPressTimer.current) { 
+      clearTimeout(longPressTimer.current); 
+      longPressTimer.current = null; 
+    }
   }, []);
 
   if (!surah) return <div className="p-8 text-center">{t('loading')}</div>;
@@ -116,15 +134,99 @@ const SurahPage = () => {
     }
   }, [audio, setProgress]);
 
+  // Note handlers
+  const handleAddNote = useCallback((ayahNum: number) => {
+    setSelectedAyahForNote(ayahNum);
+    setEditingNote(null);
+    setNoteEditorOpen(true);
+  }, []);
+
+  const handleSaveNote = useCallback((content: string, color?: NoteColor) => {
+    if (selectedAyahForNote !== null) {
+      addNote(surahNumber, selectedAyahForNote, content, color);
+      toast({ title: t('noteSaved'), duration: 1500 });
+    }
+  }, [addNote, surahNumber, selectedAyahForNote, t]);
+
+  const handleUpdateNote = useCallback((id: string, content: string, color?: NoteColor) => {
+    updateNote(id, content, color);
+    toast({ title: t('noteSaved'), duration: 1500 });
+    setEditingNote(null);
+  }, [updateNote, t]);
+
+  const handleDeleteNote = useCallback((id: string) => {
+    deleteNote(id);
+    toast({ title: t('noteDeleted'), duration: 1500 });
+  }, [deleteNote, t]);
+
+  const handleCopyAyah = useCallback(async (text: string, ayahNum: number) => {
+    const surahName = lang === 'ur' ? surah?.urduName : surah?.englishName;
+    const textToCopy = `${text}\n\n(${surahName} - ${t('ayah')} ${ayahNum})`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      toast({ title: t('ayahCopied'), duration: 1500 });
+    } catch {
+      toast({ title: 'Failed to copy', duration: 1500 });
+    }
+  }, [lang, surah, t]);
+
+  const handleShareAyah = useCallback(async (text: string, ayahNum: number) => {
+    const surahName = lang === 'ur' ? surah?.urduName : surah?.englishName;
+    const shareText = `${text}\n\n(${surahName} - ${t('ayah')} ${ayahNum})`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${surahName} - ${t('ayah')} ${ayahNum}`,
+          text: shareText,
+        });
+      } catch {
+        // User cancelled or error - ignore
+      }
+    } else {
+      // Fallback to clipboard
+      handleCopyAyah(text, ayahNum);
+    }
+  }, [lang, surah, t, handleCopyAyah]);
+
+  // Context menu / long-press for notes
+  // Notes are now shown on hover with action buttons
+
   return (
     <div className="min-h-screen pb-28" {...swipeHandlers}>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur-lg">
         <div className="mx-auto max-w-lg px-4 py-3 text-center">
-          <h1 className="text-xl font-arabic font-bold text-primary rtl animate-fade-in">{surah.name}</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {lang === 'ur' ? surah.urduName : surah.englishNameTranslation}
-          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex-1 text-right">
+              {/* Left spacer for alignment */}
+            </div>
+            <div className="flex-1">
+              <h1 className="text-xl font-arabic font-bold text-primary rtl animate-fade-in">{surah.name}</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {lang === 'ur' ? surah.urduName : surah.englishNameTranslation}
+              </p>
+            </div>
+            <div className="flex-1 flex justify-start">
+              <NotesPanel
+                notes={notes}
+                surahNumber={surahNumber}
+                onEditNote={(note) => {
+                  setEditingNote({ id: note.id, content: note.content, color: note.color });
+                  setSelectedAyahForNote(note.ayahNumber);
+                  setNoteEditorOpen(true);
+                }}
+                onDeleteNote={handleDeleteNote}
+                onAddNote={() => {
+                  setEditingNote(null);
+                  setSelectedAyahForNote(1);
+                  setNoteEditorOpen(true);
+                }}
+                isOpen={notesPanelOpen}
+                onOpenChange={setNotesPanelOpen}
+              />
+            </div>
+          </div>
         </div>
       </header>
 
@@ -161,6 +263,7 @@ const SurahPage = () => {
           <div className="rtl leading-[2.8] space-y-1 animate-fade-in" dir="rtl">
             {visibleAyahs?.map((ayah) => {
               const isAyatBookmarked = isBookmarked(ayah.numberInSurah);
+              const hasNoteForAyah = hasNote(surahNumber, ayah.numberInSurah);
               return (
                 <span key={ayah.numberInSurah} className="inline group relative" data-ayah={ayah.numberInSurah}>
                   <span
@@ -184,9 +287,51 @@ const SurahPage = () => {
                   {isAyatBookmarked && (
                     <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5 animate-scale-in" />
                   )}
+                  {hasNoteForAyah && (
+                    <StickyNote className="inline h-3 w-3 text-amber-500 mx-0.5 animate-scale-in" />
+                  )}
                   <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/8 text-primary mx-1 font-sans">
                     {ayah.numberInSurah}
                   </span>
+                  {/* Context menu on right-click */}
+                  <div className="absolute hidden group-hover:flex items-center gap-1 -top-8 left-0 bg-card border rounded-lg shadow-lg p-1 z-10">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddNote(ayah.numberInSurah);
+                      }}
+                      title={t('addNote')}
+                    >
+                      <StickyNote className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyAyah(ayah.text, ayah.numberInSurah);
+                      }}
+                      title={t('copyAyah')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShareAyah(ayah.text, ayah.numberInSurah);
+                      }}
+                      title={t('shareAyah')}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </span>
               );
             })}
@@ -211,6 +356,9 @@ const SurahPage = () => {
                 onPlaySurah={audio.playSurah} onStop={audio.stop}
                 onTogglePlayPause={audio.togglePlayPause} onSeek={audio.seek}
                 onSkipNext={audio.skipNext} onSkipPrev={audio.skipPrev}
+                onSetSleepTimer={audio.setSleepTimer}
+                onClearSleepTimer={audio.clearSleepTimer}
+                sleepTimerRemaining={audio.sleepTimerRemaining}
               />
             </div>
           )}
@@ -243,6 +391,22 @@ const SurahPage = () => {
           </div>
         </div>
       </div>
+
+      <NoteEditor
+        isOpen={noteEditorOpen}
+        onOpenChange={(open) => {
+          setNoteEditorOpen(open);
+          if (!open) {
+            setEditingNote(null);
+            setSelectedAyahForNote(null);
+          }
+        }}
+        surahNumber={surahNumber}
+        ayahNumber={selectedAyahForNote || undefined}
+        note={editingNote ? { id: editingNote.id, surahNumber, ayahNumber: selectedAyahForNote || 1, content: editingNote.content, createdAt: 0, color: editingNote.color } : undefined}
+        onSave={handleSaveNote}
+        onUpdate={handleUpdateNote}
+      />
     </div>
   );
 };

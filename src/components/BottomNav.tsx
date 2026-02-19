@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Home, BookmarkCheck, CalendarDays, BarChart3, Settings } from 'lucide-react';
+import { Home, BookmarkCheck, CalendarDays, BarChart3, Settings, StickyNote } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { key: 'home', icon: Home, path: '/' },
   { key: 'schedule', icon: CalendarDays, path: '/schedule' },
+  { key: 'notes', icon: StickyNote, path: '/notes' },
   { key: 'progress', icon: BarChart3, path: '/progress' },
   { key: 'bookmarks', icon: BookmarkCheck, path: '/bookmarks' },
   { key: 'settings', icon: Settings, path: '/settings' },

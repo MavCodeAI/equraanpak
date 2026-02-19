@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { AppSettings } from '@/types/quran';
+import type { AppSettings, AudioSpeed, RepeatMode } from '@/types/quran';
 
 interface SettingsContextType {
   settings: AppSettings;
@@ -12,6 +12,11 @@ const defaultSettings: AppSettings = {
   fontSize: 28,
   darkMode: false,
   qari: 'ar.alafasy',
+  audioSpeed: 1,
+  repeatMode: 'none',
+  repeatRangeStart: undefined,
+  repeatRangeEnd: undefined,
+  sleepTimerMinutes: undefined,
 };
 
 const SettingsContext = createContext<SettingsContextType>({

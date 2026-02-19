@@ -19,6 +19,9 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const PageReadingPage = lazy(() => import("./pages/PageReadingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const NotesPage = lazy(() => import("./pages/NotesPage"));
+const HifzPage = lazy(() => import("./pages/HifzPage"));
+const HifzMode = lazy(() => import("./components/HifzMode"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +59,9 @@ const App = () => (
                   <Route path="/schedule" element={<SchedulePage />} />
                   <Route path="/progress" element={<ProgressPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/notes" element={<NotesPage />} />
+                  <Route path="/hifz" element={<HifzPage />} />
+                  <Route path="/hifz/:id" element={<HifzMode />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
