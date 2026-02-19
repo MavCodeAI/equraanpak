@@ -6,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { Globe, Moon, Type, FileText, LogIn, LogOut, CloudUpload, User } from 'lucide-react';
+import { Globe, Moon, Type, FileText, LogIn, LogOut, CloudUpload, User, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { QARI_LIST } from '@/hooks/useQuranAudio';
+import { QariId } from '@/types/quran';
 
 const SettingsPage = () => {
   const { t, lang, setLang } = useLanguage();
@@ -128,6 +130,29 @@ const SettingsPage = () => {
             <p className="font-arabic text-center rtl" style={{ fontSize: `${settings.fontSize}px` }}>
               بِسْمِ اللَّهِ
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Qari Selection */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Volume2 className="h-4 w-4" />
+              {lang === 'ur' ? 'قاری منتخب کریں' : 'Select Reciter'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {QARI_LIST.map((q) => (
+              <Button
+                key={q.id}
+                variant={settings.qari === q.id ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateSettings({ qari: q.id as QariId })}
+                className="text-xs"
+              >
+                {lang === 'ur' ? q.nameUr : q.nameEn}
+              </Button>
+            ))}
           </CardContent>
         </Card>
 
