@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 
 const SurahPage = () => {
@@ -99,18 +99,18 @@ const SurahPage = () => {
 
   // Long press for bookmark
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleTouchStart = useCallback((ayahNum: number) => {
+  const handleTouchStart = (ayahNum: number) => {
     longPressTimer.current = setTimeout(() => {
       toggleBookmark(ayahNum);
     }, 500);
-  }, [bookmarks, surahNumber]);
+  };
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  }, []);
+  };
 
   if (!surah) return <div className="p-8 text-center">{t('loading')}</div>;
 
