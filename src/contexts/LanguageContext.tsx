@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppLanguage } from '@/types/quran';
+import type { AppLanguage } from '@/types/quran';
 
 type Translations = Record<string, Record<AppLanguage, string>>;
 
