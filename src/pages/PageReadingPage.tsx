@@ -6,10 +6,12 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useReadingTimer } from '@/hooks/useReadingTimer';
+import { useQuranAudio } from '@/hooks/useQuranAudio';
 import { Bookmark } from '@/types/quran';
 import { Button } from '@/components/ui/button';
+import { AudioPlayer } from '@/components/AudioPlayer';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -39,6 +41,10 @@ const PageReadingPage = () => {
 
   const { data: ayahs, isLoading } = usePageAyahs(currentPage);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
+
+  // Get first surah number for audio - page may have multiple surahs
+  const firstSurahNum = ayahs?.[0]?.surah?.number ?? 1;
+  const audio = useQuranAudio({ surahNumber: firstSurahNum, ayahs: ayahs ?? [] });
 
   const goToPage = (p: number) => {
     const clamped = Math.max(1, Math.min(totalPages, p));
@@ -112,7 +118,15 @@ const PageReadingPage = () => {
               {settings.pageFormat === '16-line' ? t('line16') : t('line15')}
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
+            <AudioPlayer
+              isPlaying={audio.isPlaying}
+              isLoading={audio.isLoading}
+              currentAyah={audio.currentAyah}
+              onPlaySurah={audio.playSurah}
+              onStop={audio.stop}
+              onTogglePlayPause={audio.togglePlayPause}
+            />
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
               <Minus className="h-3 w-3" />
             </Button>
@@ -167,9 +181,11 @@ const PageReadingPage = () => {
                       <span
                         className={cn(
                           'font-arabic cursor-pointer hover:text-primary transition-colors',
-                          isBookmarked(parseInt(surahNum), ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1'
+                          isBookmarked(parseInt(surahNum), ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1',
+                          audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1'
                         )}
                         style={{ fontSize: `${settings.fontSize}px` }}
+                        onClick={() => audio.playAyah(ayah.number, ayah.numberInSurah)}
                         onTouchStart={() => handleTouchStart(parseInt(surahNum), ayah.numberInSurah)}
                         onTouchEnd={handleTouchEnd}
                         onContextMenu={(e) => { e.preventDefault(); toggleBookmark(parseInt(surahNum), ayah.numberInSurah); }}

@@ -11,6 +11,7 @@ const defaultSettings: AppSettings = {
   pageFormat: '16-line',
   fontSize: 28,
   darkMode: false,
+  qari: 'ar.alafasy',
 };
 
 const SettingsContext = createContext<SettingsContextType>({

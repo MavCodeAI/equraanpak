@@ -6,9 +6,11 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useReadingTimer } from '@/hooks/useReadingTimer';
+import { useQuranAudio } from '@/hooks/useQuranAudio';
 import { Bookmark, ReadingProgress } from '@/types/quran';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
+import { AudioPlayer } from '@/components/AudioPlayer';
+import { ArrowLeft, ArrowRight, BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -24,6 +26,7 @@ const SurahPage = () => {
 
   useReadingTimer();
 
+  const audio = useQuranAudio({ surahNumber, ayahs: ayahs ?? [] });
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
   const [progress, setProgress] = useLocalStorage<ReadingProgress>('quran-progress', {
     lastReadSurah: 1,
@@ -111,7 +114,15 @@ const SurahPage = () => {
               {lang === 'ur' ? surah.urduName : surah.englishNameTranslation}
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
+            <AudioPlayer
+              isPlaying={audio.isPlaying}
+              isLoading={audio.isLoading}
+              currentAyah={audio.currentAyah}
+              onPlaySurah={audio.playSurah}
+              onStop={audio.stop}
+              onTogglePlayPause={audio.togglePlayPause}
+            />
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
               <Minus className="h-3 w-3" />
             </Button>
@@ -138,17 +149,18 @@ const SurahPage = () => {
           </div>
         ) : (
           <div className="rtl leading-[2.5] space-y-1" dir="rtl">
-            {ayahs?.map((ayah) => (
+             {ayahs?.map((ayah) => (
               <span key={ayah.numberInSurah} className="inline group relative">
                 <span
                   className={cn(
                     'font-arabic cursor-pointer hover:text-primary transition-colors',
-                    isBookmarked(ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1'
+                    isBookmarked(ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1',
+                    audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1'
                   )}
                   style={{ fontSize: `${settings.fontSize}px` }}
                   onClick={() => {
-                    // Track reading position
                     setProgress(prev => ({ ...prev, lastReadAyah: ayah.numberInSurah }));
+                    audio.playAyah(ayah.number, ayah.numberInSurah);
                   }}
                   onTouchStart={() => handleTouchStart(ayah.numberInSurah)}
                   onTouchEnd={handleTouchEnd}

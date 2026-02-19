@@ -45,9 +45,12 @@ export interface ReadingProgress {
 export type AppLanguage = 'ur' | 'en';
 export type PageFormat = '15-line' | '16-line';
 
+export type QariId = 'ar.alafasy' | 'ar.abdurrahmaansudais' | 'ar.abdulsamad' | 'ar.husary' | 'ar.minshawi';
+
 export interface AppSettings {
   language: AppLanguage;
   pageFormat: PageFormat;
   fontSize: number;
   darkMode: boolean;
+  qari: QariId;
 }
