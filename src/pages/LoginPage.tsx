@@ -65,7 +65,11 @@ const LoginPage = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
+              <label className="sr-only" htmlFor="name-input">
+                {lang === 'ur' ? 'آپ کا نام' : 'Your name'}
+              </label>
               <Input
+                id="name-input"
                 placeholder={lang === 'ur' ? 'آپ کا نام' : 'Your name'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -75,7 +79,11 @@ const LoginPage = () => {
               />
             </div>
             <div>
+              <label className="sr-only" htmlFor="pin-input">
+                {lang === 'ur' ? '4 ہندسوں کا کوڈ' : '4-digit code'}
+              </label>
               <Input
+                id="pin-input"
                 placeholder={lang === 'ur' ? '4 ہندسوں کا کوڈ' : '4-digit code'}
                 value={pin}
                 onChange={(e) => {

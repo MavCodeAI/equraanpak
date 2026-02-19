@@ -8,6 +8,17 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Globe, Moon, Sun, Type, FileText, LogIn, LogOut, CloudUpload,
   User, Volume2, ChevronRight, Shield, Smartphone, BookOpen,
   Info, Trash2, Check
@@ -31,19 +42,10 @@ const SettingsPage = () => {
   };
 
   const handleClearData = () => {
-    if (confirm(lang === 'ur' ? 'کیا آپ واقعی تمام ڈیٹا صاف کرنا چاہتے ہیں؟' : 'Are you sure you want to clear all data?')) {
-      const keysToKeep = ['quran-settings', 'quran-lang'];
-      const allKeys = Object.keys(localStorage);
-      allKeys.forEach(key => {
-        if (key.startsWith('quran-') && !keysToKeep.includes(key)) {
-          localStorage.removeItem(key);
-        }
-      });
-      toast({ title: lang === 'ur' ? 'ڈیٹا صاف ہو گیا' : 'Data cleared', duration: 2000 });
-    }
+    // The AlertDialog component will handle the confirmation
   };
 
-  const SectionHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
+  const SectionHeader = ({ icon: Icon, title }: { icon: React.ElementType; title: string }) => (
     <div className="flex items-center gap-2 mb-3">
       <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-primary/10">
         <Icon className="h-3.5 w-3.5 text-primary" />
@@ -195,7 +197,7 @@ const SettingsPage = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center',
+                    'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                     settings.pageFormat === '16-line'
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
@@ -207,7 +209,7 @@ const SettingsPage = () => {
                 </button>
                 <button
                   className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center',
+                    'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                     settings.pageFormat === '15-line'
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
@@ -234,7 +236,7 @@ const SettingsPage = () => {
                 <button
                   key={q.id}
                   className={cn(
-                    'w-full flex items-center justify-between p-3 rounded-lg border transition-all',
+                    'w-full flex items-center justify-between p-3 rounded-lg border transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                     settings.qari === q.id
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
@@ -275,14 +277,49 @@ const SettingsPage = () => {
               </Button>
             )}
 
-            <Button
-              variant="outline"
-              className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/5"
-              onClick={handleClearData}
-            >
-              <Trash2 className="h-4 w-4" />
-              {lang === 'ur' ? 'بک مارکس اور پیش رفت صاف کریں' : 'Clear Bookmarks & Progress'}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/5"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {lang === 'ur' ? 'بک مارکس اور پیش رفت صاف کریں' : 'Clear Bookmarks & Progress'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {lang === 'ur' ? 'ڈیٹا صاف کریں' : 'Clear Data'}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {lang === 'ur' 
+                      ? 'کیا آپ واقعی اپنے بک مارکس اور پیش رفت کی معلومات صاف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں کیا جا سکتا۔'
+                      : 'Are you sure you want to clear your bookmarks and progress data? This action cannot be undone.'}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>
+                    {lang === 'ur' ? 'منسوخ کریں' : 'Cancel'}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      const keysToKeep = ['quran-settings', 'quran-lang'];
+                      const allKeys = Object.keys(localStorage);
+                      allKeys.forEach(key => {
+                        if (key.startsWith('quran-') && !keysToKeep.includes(key)) {
+                          localStorage.removeItem(key);
+                        }
+                      });
+                      toast({ title: lang === 'ur' ? 'ڈیٹا صاف ہو گیا' : 'Data cleared', duration: 2000 });
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {lang === 'ur' ? 'صاف کریں' : 'Clear'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { BookmarkCheck, ChevronLeft, ChevronRight, Home, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 
 const SurahPage = () => {
@@ -23,7 +23,9 @@ const SurahPage = () => {
   const { t, lang } = useLanguage();
   const { settings, updateSettings } = useSettings();
   const { data: ayahs, isLoading } = useSurahAyahs(surahNumber);
-  const surah = surahList.find((s) => s.number === surahNumber);
+  
+  // Memoize surah lookup - O(1) instead of O(n) on each render
+  const surah = useMemo(() => surahList.find((s) => s.number === surahNumber), [surahNumber]);
   const [showAudioBar, setShowAudioBar] = useState(false);
 
   useReadingTimer();
@@ -31,14 +33,18 @@ const SurahPage = () => {
   const audio = useQuranAudio({ surahNumber, ayahs: ayahs ?? [] });
   const { visibleItems: visibleAyahs, hasMore, sentinelRef } = useChunkedAyahs(ayahs);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
+  
+  // O(1) bookmark lookup using Set
+  const bookmarkSet = useMemo(() => new Set(bookmarks.map(b => `${b.surahNumber}-${b.ayahNumber}`)), [bookmarks]);
+  const isBookmarked = useCallback((ayahNum: number) => bookmarkSet.has(`${surahNumber}-${ayahNum}`), [bookmarkSet, surahNumber]);
   const [progress, setProgress] = useLocalStorage<ReadingProgress>('quran-progress', {
     lastReadSurah: 1, lastReadAyah: 1, completedParas: {}, streak: 0,
     lastReadDate: '', totalAyahsRead: 0, todayAyahsRead: 0, todayDate: '',
   });
 
   const swipeHandlers = useSwipeGesture({
-    onSwipeLeft: () => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`),
-    onSwipeRight: () => surahNumber > 1 && navigate(`/surah/${surahNumber - 1}`),
+    onSwipeLeft: useCallback(() => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`), [surahNumber, navigate]),
+    onSwipeRight: useCallback(() => surahNumber > 1 && navigate(`/surah/${surahNumber - 1}`), [surahNumber, navigate]),
   });
 
   useEffect(() => {
@@ -63,12 +69,9 @@ const SurahPage = () => {
     }
   }, [audio.currentAyah]);
 
-  const isBookmarked = (ayahNum: number) =>
-    bookmarks.some((b) => b.surahNumber === surahNumber && b.ayahNumber === ayahNum);
-
-  const toggleBookmark = (ayahNum: number) => {
-    const was = isBookmarked(ayahNum);
-    if (was) {
+  const toggleBookmark = useCallback((ayahNum: number) => {
+    const key = `${surahNumber}-${ayahNum}`;
+    if (bookmarkSet.has(key)) {
       setBookmarks((prev) => prev.filter((b) => !(b.surahNumber === surahNumber && b.ayahNumber === ayahNum)));
       toast({ title: lang === 'ur' ? 'بک مارک ہٹایا گیا' : 'Bookmark removed', duration: 1500 });
     } else {
@@ -81,18 +84,37 @@ const SurahPage = () => {
       todayAyahsRead: prev.todayDate === today ? prev.todayAyahsRead + 1 : 1,
       todayDate: today, totalAyahsRead: prev.totalAyahsRead + 1,
     }));
-  };
+  }, [bookmarkSet, surahNumber, lang]);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleTouchStart = (ayahNum: number) => {
+  const handleTouchStart = useCallback((ayahNum: number) => {
     longPressTimer.current = setTimeout(() => toggleBookmark(ayahNum), 500);
-  };
-  const handleTouchEnd = () => {
+  }, [toggleBookmark]);
+  const handleTouchEnd = useCallback(() => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-  };
+  }, []);
 
   if (!surah) return <div className="p-8 text-center">{t('loading')}</div>;
   const audioActive = audio.isPlaying || audio.currentAyah;
+
+  // Extracted handlers for JSX
+  const handlePrevSurah = useCallback(() => surahNumber > 1 && navigate(`/surah/${surahNumber - 1}`), [surahNumber, navigate]);
+  const handleNextSurah = useCallback(() => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`), [surahNumber, navigate]);
+  const handleDecreaseFont = useCallback(() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) }), [settings.fontSize, updateSettings]);
+  const handleIncreaseFont = useCallback(() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) }), [settings.fontSize, updateSettings]);
+  const handlePlayAudio = useCallback(() => audio.playSurah(), [audio]);
+  const handleGoHome = useCallback(() => navigate('/'), [navigate]);
+  const handleAyahClick = useCallback((ayahNum: number, ayahNumberInSurah: number) => {
+    setProgress(prev => ({ ...prev, lastReadAyah: ayahNumberInSurah }));
+    audio.playAyah(ayahNum, ayahNumberInSurah);
+  }, [audio, setProgress]);
+  const handleAyahKeyDown = useCallback((e: React.KeyboardEvent, ayahNum: number, ayahNumberInSurah: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setProgress(prev => ({ ...prev, lastReadAyah: ayahNumberInSurah }));
+      audio.playAyah(ayahNum, ayahNumberInSurah);
+    }
+  }, [audio, setProgress]);
 
   return (
     <div className="min-h-screen pb-28" {...swipeHandlers}>
@@ -137,43 +159,37 @@ const SurahPage = () => {
           </div>
         ) : (
           <div className="rtl leading-[2.8] space-y-1 animate-fade-in" dir="rtl">
-            {visibleAyahs?.map((ayah) => (
-              <span key={ayah.numberInSurah} className="inline group relative" data-ayah={ayah.numberInSurah}>
-                <span
-                  className={cn(
-                    'font-arabic cursor-pointer transition-all duration-200',
-                    'hover:text-primary hover:bg-primary/5 rounded-md px-0.5',
-                    isBookmarked(ayah.numberInSurah) && 'text-primary bg-primary/8 rounded-md px-1',
-                    audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/12 rounded-md px-1 font-bold shadow-sm'
+            {visibleAyahs?.map((ayah) => {
+              const isAyatBookmarked = isBookmarked(ayah.numberInSurah);
+              return (
+                <span key={ayah.numberInSurah} className="inline group relative" data-ayah={ayah.numberInSurah}>
+                  <span
+                    className={cn(
+                      'font-arabic cursor-pointer transition-all duration-200',
+                      'hover:text-primary hover:bg-primary/5 rounded-md px-0.5',
+                      isAyatBookmarked && 'text-primary bg-primary/8 rounded-md px-1',
+                      audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/12 rounded-md px-1 font-bold shadow-sm'
+                    )}
+                    style={{ fontSize: `${settings.fontSize}px` }}
+                    onClick={() => handleAyahClick(ayah.number, ayah.numberInSurah)}
+                    onTouchStart={() => handleTouchStart(ayah.numberInSurah)}
+                    onTouchEnd={handleTouchEnd}
+                    onContextMenu={(e) => { e.preventDefault(); toggleBookmark(ayah.numberInSurah); }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => handleAyahKeyDown(e, ayah.number, ayah.numberInSurah)}
+                  >
+                    {ayah.text}
+                  </span>
+                  {isAyatBookmarked && (
+                    <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5 animate-scale-in" />
                   )}
-                  style={{ fontSize: `${settings.fontSize}px` }}
-                  onClick={() => {
-                    setProgress(prev => ({ ...prev, lastReadAyah: ayah.numberInSurah }));
-                    audio.playAyah(ayah.number, ayah.numberInSurah);
-                  }}
-                  onTouchStart={() => handleTouchStart(ayah.numberInSurah)}
-                  onTouchEnd={handleTouchEnd}
-                  onContextMenu={(e) => { e.preventDefault(); toggleBookmark(ayah.numberInSurah); }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setProgress(prev => ({ ...prev, lastReadAyah: ayah.numberInSurah }));
-                      audio.playAyah(ayah.number, ayah.numberInSurah);
-                    }
-                  }}
-                >
-                  {ayah.text}
+                  <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/8 text-primary mx-1 font-sans">
+                    {ayah.numberInSurah}
+                  </span>
                 </span>
-                {isBookmarked(ayah.numberInSurah) && (
-                  <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5 animate-scale-in" />
-                )}
-                <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/8 text-primary mx-1 font-sans">
-                  {ayah.numberInSurah}
-                </span>
-              </span>
-            ))}
+              );
+            })}
             {hasMore && (
               <div ref={sentinelRef} className="h-8 flex items-center justify-center">
                 <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -199,28 +215,28 @@ const SurahPage = () => {
             </div>
           )}
           <div className="flex items-center justify-between py-2.5">
-            <Button variant="ghost" size="sm" onClick={() => surahNumber > 1 && navigate(`/surah/${surahNumber - 1}`)} disabled={surahNumber <= 1} className="gap-0.5 px-2 rounded-xl">
+            <Button variant="ghost" size="sm" onClick={handlePrevSurah} disabled={surahNumber <= 1} className="gap-0.5 px-2 rounded-xl">
               <ChevronLeft className="h-4 w-4" />
               <span className="text-xs hidden sm:inline">{t('prev')}</span>
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleDecreaseFont}>
               <Minus className="h-3.5 w-3.5" />
             </Button>
             {!audioActive ? (
-              <Button variant="default" size="icon" className="h-11 w-11 rounded-full gradient-primary shadow-lg hover:shadow-xl transition-shadow duration-300" onClick={audio.playSurah}>
+              <Button variant="default" size="icon" className="h-11 w-11 rounded-full gradient-primary shadow-lg hover:shadow-xl transition-shadow duration-300" onClick={handlePlayAudio}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                   <polygon points="6 3 20 12 6 21 6 3" />
                 </svg>
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigate('/')}>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleGoHome}>
                 <Home className="h-5 w-5 text-primary" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) })}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleIncreaseFont}>
               <Plus className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => surahNumber < 114 && navigate(`/surah/${surahNumber + 1}`)} disabled={surahNumber >= 114} className="gap-0.5 px-2 rounded-xl">
+            <Button variant="ghost" size="sm" onClick={handleNextSurah} disabled={surahNumber >= 114} className="gap-0.5 px-2 rounded-xl">
               <span className="text-xs hidden sm:inline">{t('next')}</span>
               <ChevronRight className="h-4 w-4" />
             </Button>

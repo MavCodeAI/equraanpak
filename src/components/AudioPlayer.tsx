@@ -83,26 +83,26 @@ export const AudioPlayer = ({
       {/* Controls row */}
       <div className="flex items-center justify-center gap-1">
         {onSkipPrev && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onSkipPrev}>
-            <SkipBack className="h-3.5 w-3.5 text-foreground" />
+          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={onSkipPrev} aria-label="Skip to previous ayah">
+            <SkipBack className="h-4 w-4 text-foreground" />
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onTogglePlayPause} disabled={isLoading}>
+        <Button variant="ghost" size="icon" className="h-12 w-12" onClick={onTogglePlayPause} disabled={isLoading} aria-label={isPlaying ? 'Pause' : 'Play'}>
           {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           ) : isPlaying ? (
-            <Pause className="h-5 w-5 text-primary" />
+            <Pause className="h-6 w-6 text-primary" />
           ) : (
-            <Play className="h-5 w-5 text-primary" />
+            <Play className="h-6 w-6 text-primary" />
           )}
         </Button>
         {onSkipNext && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onSkipNext}>
-            <SkipForward className="h-3.5 w-3.5 text-foreground" />
+          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={onSkipNext} aria-label="Skip to next ayah">
+            <SkipForward className="h-4 w-4 text-foreground" />
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onStop}>
-          <Square className="h-3 w-3 text-destructive" />
+        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onStop} aria-label="Stop playback">
+          <Square className="h-3.5 w-3.5 text-destructive" />
         </Button>
         {/* Ayah badge */}
         {currentAyah && (
@@ -127,6 +127,12 @@ export const AudioPlayer = ({
             const pct = x / rect.width;
             onSeek(pct * duration);
           }}
+          role="slider"
+          aria-valuenow={Math.round(progress)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Audio progress"
+          tabIndex={0}
         >
           <div
             className="absolute inset-y-0 left-0 bg-primary rounded-full transition-[width] duration-150"

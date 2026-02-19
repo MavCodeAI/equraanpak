@@ -24,7 +24,12 @@ export const useSettings = () => useContext(SettingsContext);
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('quran-settings');
-    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    try {
+      return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    } catch (error) {
+      console.warn('Failed to parse settings from localStorage, using defaults:', error);
+      return defaultSettings;
+    }
   });
 
   useEffect(() => {

@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
+import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export type QariId = 'ar.alafasy' | 'ar.abdurrahmaansudais' | 'ar.abdulsamad' | 'ar.husary' | 'ar.minshawi';
 
@@ -25,6 +27,7 @@ interface UseQuranAudioOptions {
 
 export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
   const { settings } = useSettings();
+  const { lang } = useLanguage();
   const qari = settings.qari || 'ar.alafasy';
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -127,8 +130,25 @@ export function useQuranAudio({ surahNumber, ayahs }: UseQuranAudioOptions) {
         playNext(index + 1);
       };
       audio.onerror = () => {
-        ayahIndexRef.current = index + 1;
-        playNext(index + 1);
+        // Skip to next ayah on error, but show warning after 3 consecutive failures
+        const errorCount = (audioRef.current as unknown as { __errorCount?: number }).__errorCount || 0;
+        (audioRef.current as unknown as { __errorCount?: number }).__errorCount = errorCount + 1;
+        
+        if (errorCount >= 2) {
+          const errorMsg = lang === 'ur' 
+            ? 'آڈیو لوڈ نہیں ہو سکا۔ دوسرا قاری آزمائیں' 
+            : 'Audio failed to load. Try a different reciter';
+          toast({ 
+            title: errorMsg, 
+            variant: 'destructive',
+            duration: 3000 
+          });
+          (audioRef.current as unknown as { __errorCount?: number }).__errorCount = 0;
+          stop();
+        } else {
+          ayahIndexRef.current = index + 1;
+          playNext(index + 1);
+        }
       };
 
       try {

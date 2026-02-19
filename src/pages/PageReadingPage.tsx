@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePageAyahs } from '@/hooks/useQuranAPI';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -43,54 +43,55 @@ const PageReadingPage = () => {
   const { visibleItems: visibleAyahs, hasMore, sentinelRef } = useChunkedAyahs(ayahs);
   const [bookmarks, setBookmarks] = useLocalStorage<Bookmark[]>('quran-bookmarks', []);
 
+  // O(1) bookmark lookup using Set
+  const bookmarkSet = useMemo(() => new Set(bookmarks.map(b => `${b.surahNumber}-${b.ayahNumber}`)), [bookmarks]);
+  const isBookmarked = useCallback((surahNum: number, ayahNum: number) => bookmarkSet.has(`${surahNum}-${ayahNum}`), [bookmarkSet]);
+
   const firstSurahNum = ayahs?.[0]?.surah?.number ?? 1;
   const audio = useQuranAudio({ surahNumber: firstSurahNum, ayahs: ayahs ?? [] });
 
-  const goToPage = (p: number) => {
+  const goToPage = useCallback((p: number) => {
     const clamped = Math.max(1, Math.min(totalPages, p));
     setCurrentPage(clamped);
-  };
+  }, [totalPages]);
 
   const swipeHandlers = useSwipeGesture({
-    onSwipeLeft: () => goToPage(currentPage + 1),
-    onSwipeRight: () => goToPage(currentPage - 1),
+    onSwipeLeft: useCallback(() => goToPage(currentPage + 1), [goToPage, currentPage]),
+    onSwipeRight: useCallback(() => goToPage(currentPage - 1), [goToPage, currentPage]),
   });
 
-  const handlePageJump = () => {
+  const handlePageJump = useCallback(() => {
     const p = parseInt(pageInput);
     if (p >= 1 && p <= totalPages) {
       goToPage(p);
       setPageInput('');
     }
-  };
+  }, [pageInput, totalPages, goToPage]);
 
-  const isBookmarked = (surahNum: number, ayahNum: number) =>
-    bookmarks.some((b) => b.surahNumber === surahNum && b.ayahNumber === ayahNum);
-
-  const toggleBookmark = (surahNum: number, ayahNum: number) => {
-    const was = isBookmarked(surahNum, ayahNum);
-    if (was) {
+  const toggleBookmark = useCallback((surahNum: number, ayahNum: number) => {
+    const key = `${surahNum}-${ayahNum}`;
+    if (bookmarkSet.has(key)) {
       setBookmarks((prev) => prev.filter((b) => !(b.surahNumber === surahNum && b.ayahNumber === ayahNum)));
       toast({ title: lang === 'ur' ? 'بک مارک ہٹایا گیا' : 'Bookmark removed', duration: 1500 });
     } else {
       setBookmarks((prev) => [...prev, { surahNumber: surahNum, ayahNumber: ayahNum, timestamp: Date.now() }]);
       toast({ title: lang === 'ur' ? 'بک مارک لگایا گیا ✅' : 'Bookmark added ✅', duration: 1500 });
     }
-  };
+  }, [bookmarkSet, lang]);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleTouchStart = (surahNum: number, ayahNum: number) => {
+  const handleTouchStart = useCallback((surahNum: number, ayahNum: number) => {
     longPressTimer.current = setTimeout(() => {
       toggleBookmark(surahNum, ayahNum);
     }, 500);
-  };
+  }, [toggleBookmark]);
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (audio.currentAyah) {
@@ -99,12 +100,24 @@ const PageReadingPage = () => {
     }
   }, [audio.currentAyah]);
 
-  const groupedBySurah = visibleAyahs?.reduce((acc, ayah) => {
-    const surahNum = ayah.surah.number;
-    if (!acc[surahNum]) acc[surahNum] = { name: ayah.surah.name, ayahs: [] };
-    acc[surahNum].ayahs.push(ayah);
-    return acc;
-  }, {} as Record<number, { name: string; ayahs: typeof ayahs }>);
+  const groupedBySurah = useMemo(() => {
+    if (!visibleAyahs) return null;
+    return visibleAyahs.reduce((acc, ayah) => {
+      const surahNum = ayah.surah.number;
+      if (!acc[surahNum]) acc[surahNum] = { name: ayah.surah.name, ayahs: [] };
+      acc[surahNum].ayahs.push(ayah);
+      return acc;
+    }, {} as Record<number, { name: string; ayahs: typeof ayahs }>);
+  }, [visibleAyahs]);
+
+  const handlePrevPage = useCallback(() => goToPage(currentPage - 1), [goToPage, currentPage]);
+  const handleNextPage = useCallback(() => goToPage(currentPage + 1), [goToPage, currentPage]);
+  const handleDecreaseFont = useCallback(() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) }), [settings.fontSize, updateSettings]);
+  const handleIncreaseFont = useCallback(() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) }), [settings.fontSize, updateSettings]);
+  const handlePlayAudio = useCallback(() => audio.playSurah(), [audio]);
+  const handleGoHome = useCallback(() => navigate('/'), [navigate]);
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPageInput(e.target.value), []);
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => e.key === 'Enter' && handlePageJump(), [handlePageJump]);
 
   const audioActive = audio.isPlaying || audio.currentAyah;
 
@@ -130,8 +143,8 @@ const PageReadingPage = () => {
             max={totalPages}
             placeholder={`${t('goToPage')} (1-${totalPages})`}
             value={pageInput}
-            onChange={(e) => setPageInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handlePageJump()}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
             className="text-center"
           />
           <Button size="sm" onClick={handlePageJump} disabled={!pageInput}>
@@ -170,38 +183,42 @@ const PageReadingPage = () => {
                   </div>
                 )}
                 <div className="rtl leading-[2.5]" dir="rtl">
-                  {group.ayahs.map((ayah) => (
-                    <span key={`${surahNum}-${ayah.numberInSurah}`} className="inline" data-ayah-page={ayah.numberInSurah}>
-                      <span
-                        className={cn(
-                          'font-arabic cursor-pointer hover:text-primary transition-colors',
-                          isBookmarked(parseInt(surahNum), ayah.numberInSurah) && 'text-primary bg-primary/5 rounded px-1',
-                          audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1 font-bold'
+                  {group.ayahs.map((ayah) => {
+                    const surahNumInt = parseInt(surahNum);
+                    const isAyatBookmarked = isBookmarked(surahNumInt, ayah.numberInSurah);
+                    return (
+                      <span key={`${surahNum}-${ayah.numberInSurah}`} className="inline" data-ayah-page={ayah.numberInSurah}>
+                        <span
+                          className={cn(
+                            'font-arabic cursor-pointer hover:text-primary transition-colors',
+                            isAyatBookmarked && 'text-primary bg-primary/5 rounded px-1',
+                            audio.currentAyah === ayah.numberInSurah && 'text-primary bg-primary/10 rounded px-1 font-bold'
+                          )}
+                          style={{ fontSize: `${settings.fontSize}px` }}
+                          onClick={() => audio.playAyah(ayah.number, ayah.numberInSurah)}
+                          onTouchStart={() => handleTouchStart(surahNumInt, ayah.numberInSurah)}
+                          onTouchEnd={handleTouchEnd}
+                          onContextMenu={(e) => { e.preventDefault(); toggleBookmark(surahNumInt, ayah.numberInSurah); }}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              audio.playAyah(ayah.number, ayah.numberInSurah);
+                            }
+                          }}
+                        >
+                          {ayah.text}
+                        </span>
+                        {isAyatBookmarked && (
+                          <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5" />
                         )}
-                        style={{ fontSize: `${settings.fontSize}px` }}
-                        onClick={() => audio.playAyah(ayah.number, ayah.numberInSurah)}
-                        onTouchStart={() => handleTouchStart(parseInt(surahNum), ayah.numberInSurah)}
-                        onTouchEnd={handleTouchEnd}
-                        onContextMenu={(e) => { e.preventDefault(); toggleBookmark(parseInt(surahNum), ayah.numberInSurah); }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            audio.playAyah(ayah.number, ayah.numberInSurah);
-                          }
-                        }}
-                      >
-                        {ayah.text}
+                        <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/10 text-primary mx-1 font-sans">
+                          {ayah.numberInSurah}
+                        </span>
                       </span>
-                      {isBookmarked(parseInt(surahNum), ayah.numberInSurah) && (
-                        <BookmarkCheck className="inline h-3 w-3 text-primary mx-0.5" />
-                      )}
-                      <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] rounded-full bg-primary/10 text-primary mx-1 font-sans">
-                        {ayah.numberInSurah}
-                      </span>
-                    </span>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -240,7 +257,7 @@ const PageReadingPage = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => goToPage(currentPage - 1)}
+              onClick={handlePrevPage}
               disabled={currentPage <= 1}
               className="gap-0.5 px-2"
             >
@@ -248,7 +265,7 @@ const PageReadingPage = () => {
               <span className="text-xs hidden sm:inline">{t('prev')}</span>
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.max(18, settings.fontSize - 2) })}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDecreaseFont}>
               <Minus className="h-3.5 w-3.5" />
             </Button>
 
@@ -257,7 +274,7 @@ const PageReadingPage = () => {
                 variant="default"
                 size="icon"
                 className="h-10 w-10 rounded-full"
-                onClick={audio.playSurah}
+                onClick={handlePlayAudio}
                 title={lang === 'ur' ? 'سنیں' : 'Play'}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -265,19 +282,19 @@ const PageReadingPage = () => {
                 </svg>
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/')}>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleGoHome}>
                 <Home className="h-5 w-5 text-primary" />
               </Button>
             )}
 
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateSettings({ fontSize: Math.min(42, settings.fontSize + 2) })}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleIncreaseFont}>
               <Plus className="h-3.5 w-3.5" />
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => goToPage(currentPage + 1)}
+              onClick={handleNextPage}
               disabled={currentPage >= totalPages}
               className="gap-0.5 px-2"
             >
