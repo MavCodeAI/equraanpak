@@ -21,7 +21,7 @@ import {
 import {
   Globe, Moon, Sun, Type, FileText, LogIn, LogOut, CloudUpload,
   User, Volume2, ChevronRight, Shield, Smartphone, BookOpen,
-  Info, Trash2, Check, Gauge
+  Info, Trash2, Check, Gauge, Brain
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -220,6 +220,37 @@ const SettingsPage = () => {
                   <span className="text-xs font-medium">{t('line15')}</span>
                 </button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Hifz Settings */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-4">
+            <SectionHeader icon={Brain} title={lang === 'ur' ? 'حفظ ترتیبات' : 'Hifz Settings'} />
+            
+            <SettingRow
+              label={t('hifzMode')}
+              description={lang === 'ur' ? 'حفظ موڈ فعال کریں' : 'Enable memorization mode'}
+            >
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-muted-foreground" />
+                <Switch
+                  checked={settings.hifzModeEnabled ?? true}
+                  onCheckedChange={(v) => updateSettings({ hifzModeEnabled: v })}
+                />
+              </div>
+            </SettingRow>
+
+            <div className="pt-2">
+              <Button 
+                variant="outline" 
+                className="w-full gap-2"
+                onClick={() => navigate('/hifz')}
+              >
+                <Brain className="h-4 w-4" />
+                {lang === 'ur' ? 'حفظ ڈیش بورڈ کھولیں' : 'Open Hifz Dashboard'}
+              </Button>
             </div>
           </CardContent>
         </Card>
